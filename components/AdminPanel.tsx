@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Product, Coupon, CATEGORIES, SIZES } from '../types';
+import { Product, Coupon, CATEGORIES, SIZES, COLORS, ProductVariant } from '../types';
 import { getProducts, saveProducts, getCoupons, saveCoupons } from '../services/storageService';
 import { generateProductContent } from '../services/geminiService';
-import { Trash2, Plus, Sparkles, Loader2, Edit, Package, Tag, Save, X } from 'lucide-react';
+import { Trash2, Plus, Sparkles, Loader2, Edit, Package, Tag, Save, X, Layers } from 'lucide-react';
 
 export const AdminPanel: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'products' | 'coupons'>('products');
@@ -16,8 +16,16 @@ export const AdminPanel: React.FC = () => {
   const [currentProduct, setCurrentProduct] = useState<Partial<Product>>({
     category: 'T-Shirts',
     sizes: [],
-    images: []
+    images: [],
+    brand: '',
+    color: '',
+    variants: []
   });
+  
+  // Variant Input State
+  const [newVariantName, setNewVariantName] = useState('');
+  const [newVariantStock, setNewVariantStock] = useState<number>(0);
+
   const [loadingAI, setLoadingAI] = useState(false);
 
   const [isEditingCoupon, setIsEditingCoupon] = useState(false);
@@ -49,6 +57,9 @@ export const AdminPanel: React.FC = () => {
             sizes: currentProduct.sizes || ['M', 'L'],
             category: currentProduct.category || 'T-Shirts',
             price: Number(currentProduct.price),
+            brand: currentProduct.brand || 'DripStore',
+            color: currentProduct.color || 'Black',
+            variants: currentProduct.variants || []
         } as Product;
         updatedProducts = [newProduct, ...products];
     }
@@ -73,8 +84,36 @@ export const AdminPanel: React.FC = () => {
   }
 
   const resetProductForm = () => {
-      setCurrentProduct({ category: 'T-Shirts', sizes: [], images: [] });
+      setCurrentProduct({ category: 'T-Shirts', sizes: [], images: [], brand: '', color: '', variants: [] });
+      setNewVariantName('');
+      setNewVariantStock(0);
   }
+
+  const handleAddVariant = () => {
+      if (!newVariantName) return;
+      const variant: ProductVariant = {
+          id: Date.now().toString(),
+          name: newVariantName,
+          stock: newVariantStock
+      };
+      const updatedVariants = [...(currentProduct.variants || []), variant];
+      
+      // Optionally update total stock based on variants
+      const totalStock = updatedVariants.reduce((acc, v) => acc + v.stock, 0);
+
+      setCurrentProduct({
+          ...currentProduct,
+          variants: updatedVariants,
+          stock: totalStock > 0 ? totalStock : (currentProduct.stock || 0)
+      });
+      setNewVariantName('');
+      setNewVariantStock(0);
+  };
+
+  const removeVariant = (variantId: string) => {
+      const updatedVariants = (currentProduct.variants || []).filter(v => v.id !== variantId);
+      setCurrentProduct({ ...currentProduct, variants: updatedVariants });
+  };
 
   const handleGenerateAI = async () => {
     if (!currentProduct.name) {
@@ -115,10 +154,6 @@ export const AdminPanel: React.FC = () => {
       if (!currentCoupon.code || !currentCoupon.value) return;
       const code = currentCoupon.code.toUpperCase();
 
-      // Check for duplicates (unless editing same code - simplistic check)
-      // Since we don't have IDs for coupons, we use code as ID. 
-      // If we are "editing", we might need to remove the old one first if code changed, but here we'll just upsert.
-      
       const newCoupon = {
           code,
           type: currentCoupon.type || 'PERCENTAGE',
@@ -190,7 +225,7 @@ export const AdminPanel: React.FC = () => {
                             <thead className="bg-zinc-950 text-zinc-400 uppercase text-xs tracking-wider">
                             <tr>
                                 <th className="p-4">Item</th>
-                                <th className="p-4">Category</th>
+                                <th className="p-4">Info</th>
                                 <th className="p-4">Price</th>
                                 <th className="p-4">Stock</th>
                                 <th className="p-4 text-right">Actions</th>
@@ -206,12 +241,20 @@ export const AdminPanel: React.FC = () => {
                                         {p.originalPrice && p.originalPrice > p.price && (
                                             <div className="text-lime-400 text-xs">On Sale</div>
                                         )}
+                                        {p.variants && p.variants.length > 0 && (
+                                            <div className="text-purple-400 text-[10px] flex items-center gap-1 mt-1">
+                                                <Layers size={10} /> {p.variants.length} Variants
+                                            </div>
+                                        )}
                                     </div>
                                 </td>
-                                <td className="p-4">{p.category}</td>
+                                <td className="p-4 text-zinc-400">
+                                    <div>{p.category}</div>
+                                    <div className="text-xs">{p.brand} • {p.color}</div>
+                                </td>
                                 <td className="p-4 font-mono">
-                                    ${p.price}
-                                    {p.originalPrice && <span className="text-zinc-500 line-through ml-2 text-xs">${p.originalPrice}</span>}
+                                    ₹{p.price.toLocaleString('en-IN')}
+                                    {p.originalPrice && <span className="text-zinc-500 line-through ml-2 text-xs">₹{p.originalPrice.toLocaleString('en-IN')}</span>}
                                 </td>
                                 <td className="p-4">{p.stock}</td>
                                 <td className="p-4 text-right">
@@ -257,7 +300,7 @@ export const AdminPanel: React.FC = () => {
                             <div>
                                 <div className="text-2xl font-black text-white tracking-widest">{coupon.code}</div>
                                 <div className="text-lime-400 font-mono mt-1">
-                                    {coupon.type === 'PERCENTAGE' ? `${coupon.value}% OFF` : `$${coupon.value} FLAT OFF`}
+                                    {coupon.type === 'PERCENTAGE' ? `${coupon.value}% OFF` : `₹${coupon.value} FLAT OFF`}
                                 </div>
                             </div>
                             <button 
@@ -304,7 +347,7 @@ export const AdminPanel: React.FC = () => {
                   
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                        <label className="block text-xs font-bold text-zinc-500 uppercase mb-1">Price ($)</label>
+                        <label className="block text-xs font-bold text-zinc-500 uppercase mb-1">Price (₹)</label>
                         <input
                         type="number"
                         value={currentProduct.price || ''}
@@ -313,7 +356,7 @@ export const AdminPanel: React.FC = () => {
                         />
                     </div>
                     <div>
-                        <label className="block text-xs font-bold text-zinc-500 uppercase mb-1">Original Price ($)</label>
+                        <label className="block text-xs font-bold text-zinc-500 uppercase mb-1">Original Price (₹)</label>
                         <input
                         type="number"
                         value={currentProduct.originalPrice || ''}
@@ -324,17 +367,41 @@ export const AdminPanel: React.FC = () => {
                     </div>
                   </div>
 
+                  <div className="grid grid-cols-2 gap-4">
+                     <div>
+                        <label className="block text-xs font-bold text-zinc-500 uppercase mb-1">Category</label>
+                        <select
+                          value={currentProduct.category}
+                          onChange={e => setCurrentProduct({...currentProduct, category: e.target.value})}
+                          className="w-full bg-zinc-950 border border-zinc-700 rounded p-3 focus:border-lime-400 outline-none appearance-none"
+                        >
+                          {CATEGORIES.filter(c => c !== 'All').map(c => (
+                            <option key={c} value={c}>{c}</option>
+                          ))}
+                        </select>
+                     </div>
+                     <div>
+                         <label className="block text-xs font-bold text-zinc-500 uppercase mb-1">Color</label>
+                         <select
+                            value={currentProduct.color || ''}
+                            onChange={e => setCurrentProduct({...currentProduct, color: e.target.value})}
+                            className="w-full bg-zinc-950 border border-zinc-700 rounded p-3 focus:border-lime-400 outline-none appearance-none"
+                         >
+                             <option value="">Select</option>
+                             {COLORS.map(c => <option key={c} value={c}>{c}</option>)}
+                         </select>
+                     </div>
+                  </div>
+                  
                   <div>
-                    <label className="block text-xs font-bold text-zinc-500 uppercase mb-1">Category</label>
-                    <select
-                      value={currentProduct.category}
-                      onChange={e => setCurrentProduct({...currentProduct, category: e.target.value})}
-                      className="w-full bg-zinc-950 border border-zinc-700 rounded p-3 focus:border-lime-400 outline-none appearance-none"
-                    >
-                      {CATEGORIES.filter(c => c !== 'All').map(c => (
-                        <option key={c} value={c}>{c}</option>
-                      ))}
-                    </select>
+                      <label className="block text-xs font-bold text-zinc-500 uppercase mb-1">Brand</label>
+                      <input
+                          type="text"
+                          value={currentProduct.brand || ''}
+                          onChange={e => setCurrentProduct({...currentProduct, brand: e.target.value})}
+                          className="w-full bg-zinc-950 border border-zinc-700 rounded p-3 focus:border-lime-400 outline-none"
+                          placeholder="e.g. DRIP ORIGINALS"
+                      />
                   </div>
 
                   <div>
@@ -393,7 +460,7 @@ export const AdminPanel: React.FC = () => {
                         <button
                           key={s}
                           onClick={() => toggleSize(s)}
-                          className={`w-10 h-10 rounded flex items-center justify-center text-sm font-bold border transition ${
+                          className={`w-10 h-10 rounded flex items-center justify-center text-[10px] font-bold border transition ${
                             currentProduct.sizes?.includes(s) 
                               ? 'bg-lime-400 text-black border-lime-400' 
                               : 'bg-zinc-950 border-zinc-800 text-zinc-500 hover:border-zinc-600'
@@ -403,6 +470,55 @@ export const AdminPanel: React.FC = () => {
                         </button>
                       ))}
                     </div>
+                  </div>
+
+                  {/* VARIANT MANAGEMENT */}
+                  <div className="border-t border-zinc-800 pt-4">
+                      <label className="block text-xs font-bold text-zinc-500 uppercase mb-2 flex items-center gap-2">
+                          <Layers size={14}/> Product Variants
+                      </label>
+                      <div className="bg-zinc-950 p-3 rounded-lg border border-zinc-800 space-y-3">
+                          <div className="flex gap-2">
+                              <input 
+                                type="text" 
+                                placeholder="Variant (e.g. Red, Cotton)" 
+                                value={newVariantName}
+                                onChange={e => setNewVariantName(e.target.value)}
+                                className="flex-1 bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-xs outline-none"
+                              />
+                              <input 
+                                type="number" 
+                                placeholder="Stock" 
+                                value={newVariantStock}
+                                onChange={e => setNewVariantStock(Number(e.target.value))}
+                                className="w-20 bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-xs outline-none"
+                              />
+                              <button 
+                                onClick={handleAddVariant}
+                                className="bg-lime-400 text-black p-1 rounded hover:bg-lime-500"
+                              >
+                                  <Plus size={16} />
+                              </button>
+                          </div>
+                          
+                          {currentProduct.variants && currentProduct.variants.length > 0 && (
+                             <div className="space-y-1 max-h-32 overflow-y-auto">
+                                 {currentProduct.variants.map((v) => (
+                                     <div key={v.id} className="flex justify-between items-center text-xs bg-zinc-900 p-2 rounded">
+                                         <span>{v.name}</span>
+                                         <div className="flex items-center gap-3">
+                                             <span className="text-zinc-500">Qty: {v.stock}</span>
+                                             <button onClick={() => removeVariant(v.id)} className="text-red-400 hover:text-white"><X size={12}/></button>
+                                         </div>
+                                     </div>
+                                 ))}
+                             </div>
+                          )}
+                          
+                          {(!currentProduct.variants || currentProduct.variants.length === 0) && (
+                              <p className="text-[10px] text-zinc-600 italic text-center">No variants added.</p>
+                          )}
+                      </div>
                   </div>
 
                   <div className="pt-4 border-t border-zinc-800">
@@ -473,7 +589,7 @@ export const AdminPanel: React.FC = () => {
                                 onClick={() => setCurrentCoupon({...currentCoupon, type: 'FIXED'})}
                                 className={`flex-1 py-2 text-xs font-bold rounded transition ${currentCoupon.type === 'FIXED' ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
                             >
-                                Fixed Amount ($)
+                                Fixed Amount (₹)
                             </button>
                         </div>
                     </div>

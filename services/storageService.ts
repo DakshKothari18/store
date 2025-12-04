@@ -1,9 +1,13 @@
-import { Product, Coupon } from '../types';
+import { Product, Coupon, User, Order } from '../types';
 import { INITIAL_PRODUCTS, INITIAL_COUPONS } from '../constants';
 
 const PRODUCTS_KEY = 'dripstore_products';
 const COUPONS_KEY = 'dripstore_coupons';
+const USERS_KEY = 'dripstore_users';
+const ORDERS_KEY = 'dripstore_orders';
+const CURRENT_USER_KEY = 'dripstore_current_user';
 
+// --- Products ---
 export const getProducts = (): Product[] => {
   const stored = localStorage.getItem(PRODUCTS_KEY);
   if (!stored) {
@@ -17,6 +21,7 @@ export const saveProducts = (products: Product[]) => {
   localStorage.setItem(PRODUCTS_KEY, JSON.stringify(products));
 };
 
+// --- Coupons ---
 export const getCoupons = (): Coupon[] => {
   const stored = localStorage.getItem(COUPONS_KEY);
   if (!stored) {
@@ -28,4 +33,51 @@ export const getCoupons = (): Coupon[] => {
 
 export const saveCoupons = (coupons: Coupon[]) => {
   localStorage.setItem(COUPONS_KEY, JSON.stringify(coupons));
+};
+
+// --- Users & Auth ---
+export const getUsers = (): User[] => {
+  const stored = localStorage.getItem(USERS_KEY);
+  return stored ? JSON.parse(stored) : [];
+};
+
+export const saveUser = (user: User) => {
+  const users = getUsers();
+  users.push(user);
+  localStorage.setItem(USERS_KEY, JSON.stringify(users));
+};
+
+export const getCurrentUser = (): User | null => {
+  const stored = localStorage.getItem(CURRENT_USER_KEY);
+  return stored ? JSON.parse(stored) : null;
+};
+
+export const loginUser = (email: string, password: string): User | null => {
+  const users = getUsers();
+  const user = users.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === password);
+  if (user) {
+    localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
+    return user;
+  }
+  return null;
+};
+
+export const logoutUser = () => {
+  localStorage.removeItem(CURRENT_USER_KEY);
+};
+
+// --- Orders ---
+export const getOrders = (userId?: string): Order[] => {
+  const stored = localStorage.getItem(ORDERS_KEY);
+  const allOrders: Order[] = stored ? JSON.parse(stored) : [];
+  if (userId) {
+    return allOrders.filter(o => o.userId === userId).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }
+  return allOrders;
+};
+
+export const saveOrder = (order: Order) => {
+  const orders = getOrders();
+  orders.push(order);
+  localStorage.setItem(ORDERS_KEY, JSON.stringify(orders));
 };
