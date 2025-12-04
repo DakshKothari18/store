@@ -21,7 +21,8 @@ export const INITIAL_PRODUCTS: Product[] = [
     variants: [
         { id: 'v1', name: 'Standard Fit', stock: 20 },
         { id: 'v2', name: 'Boxy Fit', stock: 30 }
-    ]
+    ],
+    ratings: [5, 5, 4, 5]
   },
   {
     id: '2',
@@ -35,7 +36,8 @@ export const INITIAL_PRODUCTS: Product[] = [
     seoTitle: 'Neon Glitch Hoodie - Premium Cotton',
     seoKeywords: ['hoodie', 'neon', 'streetwear', 'winter wear'],
     brand: 'NEON WAVE',
-    color: 'Blue'
+    color: 'Blue',
+    ratings: [4, 3, 5]
   },
   {
     id: '3',
@@ -49,7 +51,8 @@ export const INITIAL_PRODUCTS: Product[] = [
     stock: 35,
     isNewDrop: false,
     brand: 'TACTICAL OPS',
-    color: 'Green'
+    color: 'Green',
+    ratings: [5, 5]
   },
   {
     id: '4',
@@ -62,7 +65,8 @@ export const INITIAL_PRODUCTS: Product[] = [
     stock: 100,
     isNewDrop: true,
     brand: 'DRIP ORIGINALS',
-    color: 'Silver'
+    color: 'Silver',
+    ratings: [4]
   },
   {
     id: '5',
@@ -80,7 +84,8 @@ export const INITIAL_PRODUCTS: Product[] = [
     stock: 15,
     isNewDrop: true,
     brand: 'SPEED INC',
-    color: 'White'
+    color: 'White',
+    ratings: [5, 5, 5, 5, 5]
   },
   {
     id: '6',
@@ -93,7 +98,8 @@ export const INITIAL_PRODUCTS: Product[] = [
     stock: 25,
     isNewDrop: false,
     brand: 'DRIP ORIGINALS',
-    color: 'Black'
+    color: 'Black',
+    ratings: [3, 4]
   }
 ];
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Product, CartItem, SIZES, COLORS, User, Order } from '../types';
-import { getProducts, getCoupons, getCurrentUser, loginUser, logoutUser, saveUser, getUsers, saveOrder, getOrders, getCategories } from '../services/storageService';
-import { ShoppingBag, X, Plus, Minus, Tag, ExternalLink, Flame, Search, Filter, ChevronDown, SlidersHorizontal, User as UserIcon, LogOut, Package, History } from 'lucide-react';
+import { getProducts, getCoupons, getCurrentUser, loginUser, logoutUser, saveUser, getUsers, saveOrder, getOrders, getCategories, addProductRating } from '../services/storageService';
+import { ShoppingBag, X, Plus, Minus, Tag, ExternalLink, Flame, Search, Filter, ChevronDown, SlidersHorizontal, User as UserIcon, LogOut, Package, History, Star, Loader2 } from 'lucide-react';
 import { WHATSAPP_NUMBER } from '../constants';
 
 export const StoreFront: React.FC = () => {
@@ -10,6 +10,7 @@ export const StoreFront: React.FC = () => {
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [availableBrands, setAvailableBrands] = useState<string[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   
   // --- User & Auth States ---
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -37,23 +38,32 @@ export const StoreFront: React.FC = () => {
   // --- Interaction States ---
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [quickAddProductId, setQuickAddProductId] = useState<string | null>(null);
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
+
+  // --- Rating State (for modal) ---
+  const [hoverRating, setHoverRating] = useState(0);
 
   // --- Initialization ---
   useEffect(() => {
-    const loadedProducts = getProducts();
-    setProducts(loadedProducts);
-    setFilteredProducts(loadedProducts);
-    setCategories(getCategories());
-    
-    // Extract unique brands
-    const brands = Array.from(new Set(loadedProducts.map(p => p.brand).filter(Boolean))) as string[];
-    setAvailableBrands(['All', ...brands]);
+    // Simulate loading for aesthetic purposes
+    const timer = setTimeout(() => {
+      const loadedProducts = getProducts();
+      setProducts(loadedProducts);
+      setFilteredProducts(loadedProducts);
+      setCategories(getCategories());
+      
+      // Extract unique brands
+      const brands = Array.from(new Set(loadedProducts.map(p => p.brand).filter(Boolean))) as string[];
+      setAvailableBrands(['All', ...brands]);
 
-    // Check for logged in user
-    const user = getCurrentUser();
-    if (user) {
-      setCurrentUser(user);
-    }
+      // Check for logged in user
+      const user = getCurrentUser();
+      if (user) {
+        setCurrentUser(user);
+      }
+      setIsLoading(false);
+    }, 800);
+    return () => clearTimeout(timer);
   }, []);
 
   // --- User Logic ---
@@ -177,6 +187,8 @@ export const StoreFront: React.FC = () => {
     setQuickAddProductId(null);
   };
 
+  // Calculate total items (sum of quantities)
+  const totalCartItems = cart.reduce((sum, item) => sum + item.quantity, 0);
   const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const total = Math.max(0, subtotal - discount);
 
@@ -246,6 +258,24 @@ export const StoreFront: React.FC = () => {
     processCheckout();
   };
 
+  const getAverageRating = (ratings?: number[]) => {
+      if (!ratings || ratings.length === 0) return null;
+      const sum = ratings.reduce((a, b) => a + b, 0);
+      return (sum / ratings.length).toFixed(1);
+  };
+
+  const handleRateProduct = (rating: number) => {
+      if (selectedProduct) {
+          const updatedList = addProductRating(selectedProduct.id, rating);
+          // Update local state to reflect change immediately
+          setProducts(updatedList);
+          const updatedProduct = updatedList.find(p => p.id === selectedProduct.id);
+          if (updatedProduct) {
+              setSelectedProduct(updatedProduct);
+          }
+      }
+  };
+
   const displayCategories = ['All', 'Deals', ...categories];
   const clearFilters = () => {
       setActiveCategory('All'); 
@@ -299,9 +329,9 @@ export const StoreFront: React.FC = () => {
                 className="relative p-2 hover:bg-zinc-800 rounded-full transition group"
             >
               <ShoppingBag className="text-zinc-400 group-hover:text-white transition" size={24} />
-              {cart.length > 0 && (
+              {totalCartItems > 0 && (
                 <span className="absolute top-0 right-0 bg-lime-400 text-black text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center border-2 border-zinc-950">
-                  {cart.reduce((a, b) => a + b.quantity, 0)}
+                  {totalCartItems}
                 </span>
               )}
             </button>
@@ -373,7 +403,7 @@ export const StoreFront: React.FC = () => {
             </button>
           </div>
 
-          <div className={`md:overflow-hidden transition-all duration-300 ${showFilters ? 'md:max-h-60 opacity-100' : 'md:max-h-0 md:opacity-0'}`}>
+          <div className={`overflow-hidden transition-all duration-500 ease-in-out ${showFilters ? 'max-h-[500px] opacity-100 py-4' : 'max-h-0 opacity-0 py-0'}`}>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6 p-4 bg-zinc-900/50 rounded-xl border border-zinc-800/50">
                   <div className="space-y-2">
                       <div className="flex items-center gap-2 text-zinc-500 text-[10px] font-bold uppercase tracking-widest">
@@ -441,11 +471,23 @@ export const StoreFront: React.FC = () => {
         </div>
       </div>
 
-      {/* Product Grid */}
+      {/* Loading State */}
+      {isLoading ? (
+        <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
+                <div key={i} className="animate-pulse">
+                    <div className="bg-zinc-900 rounded-xl aspect-[3/4] mb-4"></div>
+                    <div className="h-4 bg-zinc-900 rounded w-3/4 mb-2"></div>
+                    <div className="h-4 bg-zinc-900 rounded w-1/2"></div>
+                </div>
+            ))}
+        </div>
+      ) : (
+      /* Product Grid */
       <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-12">
         {filteredProducts.map(product => (
-          <div key={product.id} className="group cursor-pointer" onClick={() => setSelectedProduct(product)}>
-            <div className="aspect-[3/4] overflow-hidden bg-zinc-900 relative rounded-xl mb-4">
+          <div key={product.id} className="group cursor-pointer" onClick={() => { setSelectedProduct(product); setActiveImageIndex(0); }}>
+            <div className="aspect-[3/4] overflow-hidden bg-zinc-900 relative rounded-xl mb-4 group">
                 {product.isNewDrop && (
                     <div className="absolute top-3 left-3 bg-white text-black text-[10px] font-bold px-2 py-1 rounded-sm z-10 uppercase tracking-widest shadow-lg">
                         New
@@ -457,11 +499,20 @@ export const StoreFront: React.FC = () => {
                     </div>
                 )}
                 
+                {/* Product Image Handling with Hover Effect */}
                 <img 
                     src={product.images[0]} 
                     alt={product.name}
-                    className="w-full h-full object-cover group-hover:scale-110 transition duration-700 ease-out"
+                    className={`w-full h-full object-cover transition duration-700 ease-out ${product.images[1] ? 'group-hover:opacity-0' : 'group-hover:scale-110'}`}
                 />
+                
+                {product.images[1] && (
+                    <img 
+                        src={product.images[1]}
+                        alt={product.name}
+                        className="absolute inset-0 w-full h-full object-cover opacity-0 group-hover:opacity-100 transition duration-700 ease-out scale-105"
+                    />
+                )}
                 
                 <div className={`absolute inset-0 bg-black/40 transition duration-300 flex items-end p-4 ${quickAddProductId === product.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
                     {quickAddProductId === product.id ? (
@@ -502,8 +553,15 @@ export const StoreFront: React.FC = () => {
                   <span className="text-[10px] text-zinc-600">{product.color}</span>
               </div>
               <h3 className="font-bold text-lg leading-tight mb-1 group-hover:text-lime-400 transition">{product.name}</h3>
-              <div className="flex justify-between items-center">
-                  <p className="text-zinc-500 text-xs uppercase tracking-wide">{product.category}</p>
+              <div className="flex justify-between items-end">
+                  <div>
+                      <p className="text-zinc-500 text-xs uppercase tracking-wide mb-1">{product.category}</p>
+                      {getAverageRating(product.ratings) && (
+                          <div className="flex items-center gap-1 text-[10px] font-bold text-yellow-500">
+                              <Star size={10} fill="currentColor" /> {getAverageRating(product.ratings)}
+                          </div>
+                      )}
+                  </div>
                   <div className="font-mono flex gap-2 items-center">
                      {product.originalPrice && product.originalPrice > product.price && (
                          <span className="text-zinc-600 line-through text-xs">₹{product.originalPrice.toLocaleString('en-IN')}</span>
@@ -515,8 +573,9 @@ export const StoreFront: React.FC = () => {
           </div>
         ))}
       </div>
+      )}
 
-      {filteredProducts.length === 0 && (
+      {!isLoading && filteredProducts.length === 0 && (
           <div className="text-center py-20 px-4">
               <p className="text-zinc-500 text-lg">No items found matching your filters.</p>
               <button onClick={clearFilters} className="mt-6 text-lime-400 underline font-bold">Clear All Filters</button>
@@ -528,25 +587,67 @@ export const StoreFront: React.FC = () => {
       {/* Product Detail Modal */}
       {selectedProduct && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="bg-zinc-950 w-full max-w-4xl rounded-2xl overflow-hidden shadow-2xl border border-zinc-800 relative flex flex-col md:flex-row h-full md:h-auto max-h-[90vh]">
+          <div className="bg-zinc-950 w-full max-w-5xl rounded-2xl overflow-hidden shadow-2xl border border-zinc-800 relative flex flex-col md:flex-row h-full md:h-[90vh] max-h-[90vh]">
             <button 
                 onClick={() => setSelectedProduct(null)}
                 className="absolute top-4 right-4 p-2 bg-black/50 hover:bg-white hover:text-black rounded-full text-white z-10 transition"
             >
                 <X size={20} />
             </button>
-            <div className="w-full md:w-1/2 bg-zinc-900 h-1/2 md:h-auto">
-                <img src={selectedProduct.images[0]} alt="" className="w-full h-full object-cover" />
+            
+            {/* Image Gallery Section */}
+            <div className="w-full md:w-1/2 bg-zinc-900 flex flex-col h-1/2 md:h-full">
+                <div className="flex-1 relative bg-zinc-800 overflow-hidden">
+                    <img src={selectedProduct.images[activeImageIndex]} alt={selectedProduct.name} className="w-full h-full object-cover transition-all duration-300" />
+                </div>
+                {selectedProduct.images.length > 1 && (
+                    <div className="flex gap-2 p-4 overflow-x-auto bg-zinc-950 border-t border-zinc-900 no-scrollbar">
+                        {selectedProduct.images.map((img, idx) => (
+                            <button 
+                                key={idx}
+                                onClick={(e) => { e.stopPropagation(); setActiveImageIndex(idx); }}
+                                className={`w-16 h-20 flex-shrink-0 rounded border-2 transition overflow-hidden ${activeImageIndex === idx ? 'border-lime-400 opacity-100' : 'border-zinc-800 opacity-50 hover:opacity-100'}`}
+                            >
+                                <img src={img} className="w-full h-full object-cover" />
+                            </button>
+                        ))}
+                    </div>
+                )}
             </div>
-            <div className="w-full md:w-1/2 p-6 md:p-10 flex flex-col overflow-y-auto">
+
+            {/* Content Section */}
+            <div className="w-full md:w-1/2 p-6 md:p-10 flex flex-col overflow-y-auto h-1/2 md:h-full bg-zinc-950">
                 <div className="mb-auto">
                     <div className="flex justify-between items-center mb-2">
                         <span className="text-lime-400 text-xs font-bold uppercase tracking-widest block">DripStore Exclusive</span>
                         <span className="text-zinc-500 text-xs font-bold uppercase">{selectedProduct.brand}</span>
                     </div>
-                    <h2 className="text-3xl md:text-4xl font-black mb-4 uppercase leading-none">{selectedProduct.name}</h2>
-                    <div className="flex gap-4 items-center mb-6">
-                        <span className="text-2xl font-mono text-white">₹{selectedProduct.price.toLocaleString('en-IN')}</span>
+                    <h2 className="text-3xl md:text-5xl font-black mb-6 uppercase leading-[0.9]">{selectedProduct.name}</h2>
+                    
+                    {/* Rating Section in Modal */}
+                    <div className="flex items-center gap-4 mb-6">
+                        <div className="flex gap-1" onMouseLeave={() => setHoverRating(0)}>
+                            {[1, 2, 3, 4, 5].map((star) => (
+                                <button
+                                    key={star}
+                                    onMouseEnter={() => setHoverRating(star)}
+                                    onClick={() => handleRateProduct(star)}
+                                    className="transition-transform hover:scale-110"
+                                >
+                                    <Star 
+                                        size={20} 
+                                        className={star <= (hoverRating || getAverageRating(selectedProduct.ratings) || 0) ? 'text-yellow-500 fill-yellow-500' : 'text-zinc-700'} 
+                                    />
+                                </button>
+                            ))}
+                        </div>
+                        <span className="text-xs text-zinc-500 font-bold uppercase">
+                            {selectedProduct.ratings?.length || 0} Reviews
+                        </span>
+                    </div>
+
+                    <div className="flex gap-4 items-center mb-8 pb-8 border-b border-zinc-900">
+                        <span className="text-3xl font-mono text-white">₹{selectedProduct.price.toLocaleString('en-IN')}</span>
                         {selectedProduct.originalPrice && selectedProduct.originalPrice > selectedProduct.price && (
                             <span className="text-zinc-500 line-through text-lg">₹{selectedProduct.originalPrice.toLocaleString('en-IN')}</span>
                         )}
@@ -554,15 +655,19 @@ export const StoreFront: React.FC = () => {
                              <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-1 rounded">SAVE {Math.round(((selectedProduct.originalPrice - selectedProduct.price) / selectedProduct.originalPrice) * 100)}%</span>
                         )}
                     </div>
-                    <p className="text-zinc-400 text-sm md:text-base mb-8 leading-relaxed font-light border-l-2 border-lime-400 pl-4">{selectedProduct.description}</p>
                     
-                    <div className="space-y-6">
+                    <div className="mb-8">
+                        <h3 className="text-xs font-bold text-zinc-500 uppercase mb-2">Description</h3>
+                        <p className="text-zinc-400 text-sm md:text-base leading-relaxed font-light">{selectedProduct.description}</p>
+                    </div>
+                    
+                    <div className="space-y-8">
                         {selectedProduct.variants && selectedProduct.variants.length > 0 && (
-                            <div className="mb-4">
-                                <span className="text-xs text-zinc-500 uppercase tracking-wider block mb-2 font-bold">Available Variants</span>
+                            <div>
+                                <span className="text-xs text-zinc-500 uppercase tracking-wider block mb-3 font-bold">Available Styles</span>
                                 <div className="flex gap-2 flex-wrap">
                                     {selectedProduct.variants.map(v => (
-                                        <div key={v.id} className="text-xs bg-zinc-900 border border-zinc-800 px-3 py-1 rounded text-zinc-300">
+                                        <div key={v.id} className="text-xs bg-zinc-900 border border-zinc-800 hover:border-zinc-600 px-4 py-2 rounded text-zinc-300 cursor-default transition">
                                             {v.name}
                                         </div>
                                     ))}
@@ -570,13 +675,16 @@ export const StoreFront: React.FC = () => {
                             </div>
                         )}
                         <div>
-                            <span className="text-xs text-zinc-500 uppercase tracking-wider block mb-3 font-bold">Select Size</span>
+                            <div className="flex justify-between items-center mb-3">
+                                <span className="text-xs text-zinc-500 uppercase tracking-wider font-bold">Select Size</span>
+                                <span className="text-xs text-lime-400 underline cursor-pointer">Size Guide</span>
+                            </div>
                             <div className="flex gap-3 flex-wrap">
                                 {selectedProduct.sizes.map(size => (
                                     <button
                                         key={size}
                                         onClick={() => addToCart(selectedProduct, size)}
-                                        className="min-w-[48px] h-12 px-2 rounded bg-zinc-900 border border-zinc-800 hover:border-lime-400 hover:text-lime-400 transition flex items-center justify-center font-mono text-sm font-bold"
+                                        className="min-w-[56px] h-14 px-2 rounded bg-zinc-900 border border-zinc-800 hover:border-lime-400 hover:bg-lime-400/10 hover:text-lime-400 transition flex items-center justify-center font-mono text-sm font-bold"
                                     >
                                         {size}
                                     </button>
@@ -596,7 +704,7 @@ export const StoreFront: React.FC = () => {
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setCartOpen(false)} />
           <div className="relative bg-zinc-950 w-full max-w-md h-full flex flex-col shadow-2xl border-l border-zinc-800 animate-in slide-in-from-right duration-300">
             <div className="p-6 border-b border-zinc-900 flex justify-between items-center bg-zinc-950 z-10">
-              <h2 className="text-xl font-black tracking-tight">YOUR CART ({cart.length})</h2>
+              <h2 className="text-xl font-black tracking-tight">YOUR CART ({totalCartItems})</h2>
               <button onClick={() => setCartOpen(false)} className="hover:text-lime-400 transition"><X /></button>
             </div>
             <div className="flex-1 overflow-y-auto p-6 space-y-6">

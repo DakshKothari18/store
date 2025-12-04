@@ -22,6 +22,19 @@ export const saveProducts = (products: Product[]) => {
   localStorage.setItem(PRODUCTS_KEY, JSON.stringify(products));
 };
 
+export const addProductRating = (productId: string, rating: number) => {
+    const products = getProducts();
+    const updatedProducts = products.map(p => {
+        if (p.id === productId) {
+            const currentRatings = p.ratings || [];
+            return { ...p, ratings: [...currentRatings, rating] };
+        }
+        return p;
+    });
+    saveProducts(updatedProducts);
+    return updatedProducts;
+};
+
 // --- Categories ---
 export const getCategories = (): string[] => {
   const stored = localStorage.getItem(CATEGORIES_KEY);

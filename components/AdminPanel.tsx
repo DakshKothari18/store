@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Product, Coupon, SIZES, COLORS, ProductVariant } from '../types';
 import { getProducts, saveProducts, getCoupons, saveCoupons, getCategories, saveCategories } from '../services/storageService';
 import { generateProductContent } from '../services/geminiService';
-import { Trash2, Plus, Sparkles, Loader2, Edit, Package, Tag, Save, X, Layers, Upload, List } from 'lucide-react';
+import { Trash2, Plus, Sparkles, Loader2, Edit, Package, Tag, Save, X, Layers, Upload, List, Star } from 'lucide-react';
 
 export const AdminPanel: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'products' | 'coupons' | 'categories'>('products');
@@ -65,7 +65,8 @@ export const AdminPanel: React.FC = () => {
             price: Number(currentProduct.price),
             brand: currentProduct.brand || 'DripStore',
             color: currentProduct.color || 'Black',
-            variants: currentProduct.variants || []
+            variants: currentProduct.variants || [],
+            ratings: []
         } as Product;
         updatedProducts = [newProduct, ...products];
     }
@@ -237,6 +238,12 @@ export const AdminPanel: React.FC = () => {
       }
   };
 
+  const getAverageRating = (ratings?: number[]) => {
+      if (!ratings || ratings.length === 0) return 'N/A';
+      const sum = ratings.reduce((a, b) => a + b, 0);
+      return (sum / ratings.length).toFixed(1);
+  };
+
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col md:flex-row font-sans">
       
@@ -292,6 +299,7 @@ export const AdminPanel: React.FC = () => {
                             <tr>
                                 <th className="p-4">Item</th>
                                 <th className="p-4">Info</th>
+                                <th className="p-4">Rating</th>
                                 <th className="p-4">Price</th>
                                 <th className="p-4">Stock</th>
                                 <th className="p-4 text-right">Actions</th>
@@ -318,6 +326,11 @@ export const AdminPanel: React.FC = () => {
                                     <div>{p.category}</div>
                                     <div className="text-xs">{p.brand} • {p.color}</div>
                                 </td>
+                                <td className="p-4">
+                                    <div className="flex items-center gap-1 text-yellow-500 font-bold">
+                                        <Star size={12} fill="currentColor" /> {getAverageRating(p.ratings)}
+                                    </div>
+                                </td>
                                 <td className="p-4 font-mono">
                                     ₹{p.price.toLocaleString('en-IN')}
                                     {p.originalPrice && <span className="text-zinc-500 line-through ml-2 text-xs">₹{p.originalPrice.toLocaleString('en-IN')}</span>}
@@ -337,7 +350,7 @@ export const AdminPanel: React.FC = () => {
                             ))}
                             {products.length === 0 && (
                                 <tr>
-                                    <td colSpan={5} className="p-8 text-center text-zinc-500">No products found. Add one to get started.</td>
+                                    <td colSpan={6} className="p-8 text-center text-zinc-500">No products found. Add one to get started.</td>
                                 </tr>
                             )}
                             </tbody>

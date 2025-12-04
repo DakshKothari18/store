@@ -20,6 +20,7 @@ export interface Product {
   brand?: string;
   color?: string;
   variants?: ProductVariant[];
+  ratings?: number[]; // Array of ratings (1-5)
 }
 
 export interface CartItem extends Product {
