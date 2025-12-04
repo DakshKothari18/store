@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Product, Coupon, CATEGORIES, SIZES, COLORS, ProductVariant } from '../types';
 import { getProducts, saveProducts, getCoupons, saveCoupons } from '../services/storageService';
 import { generateProductContent } from '../services/geminiService';
-import { Trash2, Plus, Sparkles, Loader2, Edit, Package, Tag, Save, X, Layers } from 'lucide-react';
+import { Trash2, Plus, Sparkles, Loader2, Edit, Package, Tag, Save, X, Layers, Upload } from 'lucide-react';
 
 export const AdminPanel: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'products' | 'coupons'>('products');
@@ -113,6 +113,39 @@ export const AdminPanel: React.FC = () => {
   const removeVariant = (variantId: string) => {
       const updatedVariants = (currentProduct.variants || []).filter(v => v.id !== variantId);
       setCurrentProduct({ ...currentProduct, variants: updatedVariants });
+  };
+
+  // --- Image Upload Handlers ---
+  const convertToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = error => reject(error);
+    });
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+        const files = Array.from(e.target.files);
+        try {
+            const base64Images = await Promise.all(files.map(convertToBase64));
+            setCurrentProduct(prev => ({
+                ...prev,
+                images: [...(prev.images || []), ...base64Images]
+            }));
+        } catch (error) {
+            console.error("Error uploading images", error);
+            alert("Failed to upload images");
+        }
+    }
+  };
+
+  const removeImage = (index: number) => {
+    setCurrentProduct(prev => ({
+        ...prev,
+        images: prev.images?.filter((_, i) => i !== index)
+    }));
   };
 
   const handleGenerateAI = async () => {
@@ -404,20 +437,37 @@ export const AdminPanel: React.FC = () => {
                       />
                   </div>
 
+                  {/* Image Upload Section */}
                   <div>
-                    <label className="block text-xs font-bold text-zinc-500 uppercase mb-1">Image URL</label>
-                    <input
-                      type="text"
-                      value={currentProduct.images?.[0] || ''}
-                      onChange={e => setCurrentProduct({...currentProduct, images: [e.target.value]})}
-                      className="w-full bg-zinc-950 border border-zinc-700 rounded p-3 focus:border-lime-400 outline-none text-xs"
-                      placeholder="https://..."
-                    />
-                    {currentProduct.images?.[0] && (
-                        <div className="mt-2 h-32 w-full bg-zinc-950 rounded border border-zinc-800 overflow-hidden">
-                            <img src={currentProduct.images[0]} className="w-full h-full object-cover opacity-70" alt="Preview"/>
-                        </div>
-                    )}
+                    <label className="block text-xs font-bold text-zinc-500 uppercase mb-2">Product Images</label>
+                    <div className="grid grid-cols-3 gap-3">
+                        {currentProduct.images?.map((img, idx) => (
+                            <div key={idx} className="relative aspect-[3/4] group rounded overflow-hidden border border-zinc-800">
+                                <img src={img} alt={`Product ${idx}`} className="w-full h-full object-cover" />
+                                <button 
+                                    onClick={() => removeImage(idx)}
+                                    className="absolute top-1 right-1 bg-black/70 text-white p-1.5 rounded-full hover:bg-red-500 transition opacity-0 group-hover:opacity-100"
+                                >
+                                    <X size={12} />
+                                </button>
+                            </div>
+                        ))}
+                        
+                        <label className="aspect-[3/4] border-2 border-dashed border-zinc-800 rounded hover:border-lime-400 hover:bg-zinc-900/50 transition cursor-pointer flex flex-col items-center justify-center text-zinc-600 hover:text-lime-400 group">
+                            <Upload size={24} className="mb-2 group-hover:scale-110 transition" />
+                            <span className="text-[10px] font-bold uppercase">Upload</span>
+                            <input 
+                                type="file" 
+                                multiple 
+                                accept="image/*" 
+                                onChange={handleImageUpload} 
+                                className="hidden" 
+                            />
+                        </label>
+                    </div>
+                    <p className="text-[10px] text-zinc-600 mt-2">
+                        Supported: JPG, PNG, WEBP. Images stored locally (Base64).
+                    </p>
                   </div>
                 </div>
 

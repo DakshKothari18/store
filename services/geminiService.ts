@@ -1,12 +1,20 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
-const apiKey = process.env.API_KEY || '';
-// Initialize Gemini only if key is present to avoid immediate crash, though functionality will be limited.
+// Handle API Key for both Vite (build) and standard process.env (local)
+// @ts-ignore
+const apiKey = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_KEY) || (typeof process !== 'undefined' ? process.env.API_KEY : '') || '';
+
 const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
 
 export const generateProductContent = async (productName: string, category: string, keyFeatures: string) => {
   if (!ai) {
-    throw new Error("API Key not found in environment variables.");
+    console.error("API Key missing");
+    // Return mock data if API key is missing to prevent crash
+    return {
+        description: `Premium ${category} featuring ${keyFeatures}. Designed for the modern streets.`,
+        seoTitle: `${productName} | DripStore Official`,
+        keywords: ['streetwear', 'fashion', category.toLowerCase(), 'style', 'drip']
+    };
   }
 
   const prompt = `
