@@ -1,5 +1,7 @@
 import { Product, Coupon } from './types';
 
+export const INITIAL_CATEGORIES = ['T-Shirts', 'Hoodies', 'Pants', 'Shoes', 'Accessories', 'Limited Drop'];
+
 export const INITIAL_PRODUCTS: Product[] = [
   {
     id: '1',
@@ -8,7 +10,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     price: 1999,
     originalPrice: 2499,
     category: 'T-Shirts',
-    images: ['https://picsum.photos/id/1060/800/1000'],
+    images: ['https://picsum.photos/id/1060/800/1000', 'https://picsum.photos/id/1062/800/1000', 'https://picsum.photos/id/1069/800/1000'],
     sizes: ['M', 'L', 'XL'],
     stock: 50,
     isNewDrop: true,
@@ -27,7 +29,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     description: 'French terry hoodie featuring neon glitch aesthetics and dropped shoulders.',
     price: 3499,
     category: 'Hoodies',
-    images: ['https://picsum.photos/id/1067/800/1000'],
+    images: ['https://picsum.photos/id/1067/800/1000', 'https://picsum.photos/id/1011/800/1000'],
     sizes: ['S', 'M', 'L', 'XL'],
     stock: 20,
     seoTitle: 'Neon Glitch Hoodie - Premium Cotton',
@@ -69,7 +71,11 @@ export const INITIAL_PRODUCTS: Product[] = [
     price: 6999,
     originalPrice: 8999,
     category: 'Shoes',
-    images: ['https://picsum.photos/id/103/800/1000'], 
+    images: [
+        'https://picsum.photos/id/103/800/1000',
+        'https://picsum.photos/id/21/800/1000',
+        'https://picsum.photos/id/75/800/1000'
+    ], 
     sizes: ['US 8', 'US 9', 'US 10', 'US 11'],
     stock: 15,
     isNewDrop: true,

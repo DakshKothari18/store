@@ -1,20 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { Product, Coupon, CATEGORIES, SIZES, COLORS, ProductVariant } from '../types';
-import { getProducts, saveProducts, getCoupons, saveCoupons } from '../services/storageService';
+import { Product, Coupon, SIZES, COLORS, ProductVariant } from '../types';
+import { getProducts, saveProducts, getCoupons, saveCoupons, getCategories, saveCategories } from '../services/storageService';
 import { generateProductContent } from '../services/geminiService';
-import { Trash2, Plus, Sparkles, Loader2, Edit, Package, Tag, Save, X, Layers, Upload } from 'lucide-react';
+import { Trash2, Plus, Sparkles, Loader2, Edit, Package, Tag, Save, X, Layers, Upload, List } from 'lucide-react';
 
 export const AdminPanel: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'products' | 'coupons'>('products');
+  const [activeTab, setActiveTab] = useState<'products' | 'coupons' | 'categories'>('products');
   
   // Data State
   const [products, setProducts] = useState<Product[]>([]);
   const [coupons, setCoupons] = useState<Coupon[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
 
   // UI State
   const [isEditingProduct, setIsEditingProduct] = useState(false);
   const [currentProduct, setCurrentProduct] = useState<Partial<Product>>({
-    category: 'T-Shirts',
+    category: '',
     sizes: [],
     images: [],
     brand: '',
@@ -28,6 +29,7 @@ export const AdminPanel: React.FC = () => {
 
   const [loadingAI, setLoadingAI] = useState(false);
 
+  // Coupon UI State
   const [isEditingCoupon, setIsEditingCoupon] = useState(false);
   const [currentCoupon, setCurrentCoupon] = useState<Partial<Coupon>>({
     type: 'PERCENTAGE',
@@ -35,9 +37,13 @@ export const AdminPanel: React.FC = () => {
     code: ''
   });
 
+  // Category UI State
+  const [newCategoryName, setNewCategoryName] = useState('');
+
   useEffect(() => {
     setProducts(getProducts());
     setCoupons(getCoupons());
+    setCategories(getCategories());
   }, []);
 
   // --- Product Handlers ---
@@ -55,7 +61,7 @@ export const AdminPanel: React.FC = () => {
             stock: currentProduct.stock || 0,
             description: currentProduct.description || '',
             sizes: currentProduct.sizes || ['M', 'L'],
-            category: currentProduct.category || 'T-Shirts',
+            category: currentProduct.category || categories[0] || 'Uncategorized',
             price: Number(currentProduct.price),
             brand: currentProduct.brand || 'DripStore',
             color: currentProduct.color || 'Black',
@@ -84,7 +90,7 @@ export const AdminPanel: React.FC = () => {
   }
 
   const resetProductForm = () => {
-      setCurrentProduct({ category: 'T-Shirts', sizes: [], images: [], brand: '', color: '', variants: [] });
+      setCurrentProduct({ category: categories[0] || '', sizes: [], images: [], brand: '', color: '', variants: [] });
       setNewVariantName('');
       setNewVariantStock(0);
   }
@@ -210,6 +216,27 @@ export const AdminPanel: React.FC = () => {
       }
   };
 
+  // --- Category Handlers ---
+  const handleAddCategory = () => {
+      if (!newCategoryName.trim()) return;
+      if (categories.includes(newCategoryName.trim())) {
+          alert('Category already exists');
+          return;
+      }
+      const updated = [...categories, newCategoryName.trim()];
+      setCategories(updated);
+      saveCategories(updated);
+      setNewCategoryName('');
+  };
+
+  const handleDeleteCategory = (cat: string) => {
+      if (window.confirm(`Delete category "${cat}"? Products in this category will remain but might not be filterable unless updated.`)) {
+          const updated = categories.filter(c => c !== cat);
+          setCategories(updated);
+          saveCategories(updated);
+      }
+  };
+
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col md:flex-row font-sans">
       
@@ -220,12 +247,18 @@ export const AdminPanel: React.FC = () => {
             <p className="text-xs text-zinc-500 mt-1">Management Console</p>
         </div>
         
-        <nav className="flex md:flex-col gap-2 overflow-x-auto md:overflow-visible">
+        <nav className="flex md:flex-col gap-2 overflow-x-auto md:overflow-visible no-scrollbar">
             <button 
                 onClick={() => setActiveTab('products')}
                 className={`flex items-center gap-3 px-4 py-3 rounded-lg transition whitespace-nowrap ${activeTab === 'products' ? 'bg-lime-400 text-black font-bold' : 'text-zinc-400 hover:bg-zinc-800'}`}
             >
                 <Package size={20} /> Products
+            </button>
+            <button 
+                onClick={() => setActiveTab('categories')}
+                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition whitespace-nowrap ${activeTab === 'categories' ? 'bg-lime-400 text-black font-bold' : 'text-zinc-400 hover:bg-zinc-800'}`}
+            >
+                <List size={20} /> Categories
             </button>
             <button 
                 onClick={() => setActiveTab('coupons')}
@@ -309,6 +342,48 @@ export const AdminPanel: React.FC = () => {
                             )}
                             </tbody>
                         </table>
+                    </div>
+                </div>
+            </div>
+        )}
+
+        {/* CATEGORIES TAB */}
+        {activeTab === 'categories' && (
+            <div className="space-y-6 max-w-2xl">
+                 <div className="flex justify-between items-center">
+                    <h2 className="text-3xl font-bold tracking-tight">Categories</h2>
+                </div>
+                
+                <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
+                    <div className="flex gap-4 mb-8">
+                        <input 
+                            type="text" 
+                            placeholder="New Category Name..." 
+                            value={newCategoryName}
+                            onChange={(e) => setNewCategoryName(e.target.value)}
+                            className="flex-1 bg-zinc-950 border border-zinc-700 rounded-lg px-4 py-2 outline-none focus:border-lime-400"
+                            onKeyDown={(e) => e.key === 'Enter' && handleAddCategory()}
+                        />
+                        <button 
+                            onClick={handleAddCategory}
+                            className="bg-lime-400 text-black font-bold px-6 py-2 rounded-lg hover:bg-lime-500"
+                        >
+                            Add
+                        </button>
+                    </div>
+
+                    <div className="space-y-3">
+                        {categories.map(cat => (
+                            <div key={cat} className="flex justify-between items-center bg-zinc-950 p-4 rounded-lg border border-zinc-800">
+                                <span className="font-bold">{cat}</span>
+                                <button onClick={() => handleDeleteCategory(cat)} className="text-zinc-500 hover:text-red-400 transition">
+                                    <Trash2 size={18} />
+                                </button>
+                            </div>
+                        ))}
+                        {categories.length === 0 && (
+                            <div className="text-center text-zinc-500 py-4">No categories found.</div>
+                        )}
                     </div>
                 </div>
             </div>
@@ -408,7 +483,8 @@ export const AdminPanel: React.FC = () => {
                           onChange={e => setCurrentProduct({...currentProduct, category: e.target.value})}
                           className="w-full bg-zinc-950 border border-zinc-700 rounded p-3 focus:border-lime-400 outline-none appearance-none"
                         >
-                          {CATEGORIES.filter(c => c !== 'All').map(c => (
+                          <option value="" disabled>Select Category</option>
+                          {categories.map(c => (
                             <option key={c} value={c}>{c}</option>
                           ))}
                         </select>

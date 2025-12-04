@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Product, CATEGORIES, CartItem, SIZES, COLORS, User, Order } from '../types';
-import { getProducts, getCoupons, getCurrentUser, loginUser, logoutUser, saveUser, getUsers, saveOrder, getOrders } from '../services/storageService';
+import { Product, CartItem, SIZES, COLORS, User, Order } from '../types';
+import { getProducts, getCoupons, getCurrentUser, loginUser, logoutUser, saveUser, getUsers, saveOrder, getOrders, getCategories } from '../services/storageService';
 import { ShoppingBag, X, Plus, Minus, Tag, ExternalLink, Flame, Search, Filter, ChevronDown, SlidersHorizontal, User as UserIcon, LogOut, Package, History } from 'lucide-react';
 import { WHATSAPP_NUMBER } from '../constants';
 
@@ -9,6 +9,7 @@ export const StoreFront: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [availableBrands, setAvailableBrands] = useState<string[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
   
   // --- User & Auth States ---
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -42,6 +43,7 @@ export const StoreFront: React.FC = () => {
     const loadedProducts = getProducts();
     setProducts(loadedProducts);
     setFilteredProducts(loadedProducts);
+    setCategories(getCategories());
     
     // Extract unique brands
     const brands = Array.from(new Set(loadedProducts.map(p => p.brand).filter(Boolean))) as string[];
@@ -244,7 +246,7 @@ export const StoreFront: React.FC = () => {
     processCheckout();
   };
 
-  const displayCategories = ['All', 'Deals', ...CATEGORIES.filter(c => c !== 'All')];
+  const displayCategories = ['All', 'Deals', ...categories];
   const clearFilters = () => {
       setActiveCategory('All'); 
       setActiveSize('All'); 

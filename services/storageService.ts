@@ -1,11 +1,12 @@
 import { Product, Coupon, User, Order } from '../types';
-import { INITIAL_PRODUCTS, INITIAL_COUPONS } from '../constants';
+import { INITIAL_PRODUCTS, INITIAL_COUPONS, INITIAL_CATEGORIES } from '../constants';
 
 const PRODUCTS_KEY = 'dripstore_products';
 const COUPONS_KEY = 'dripstore_coupons';
 const USERS_KEY = 'dripstore_users';
 const ORDERS_KEY = 'dripstore_orders';
 const CURRENT_USER_KEY = 'dripstore_current_user';
+const CATEGORIES_KEY = 'dripstore_categories';
 
 // --- Products ---
 export const getProducts = (): Product[] => {
@@ -19,6 +20,20 @@ export const getProducts = (): Product[] => {
 
 export const saveProducts = (products: Product[]) => {
   localStorage.setItem(PRODUCTS_KEY, JSON.stringify(products));
+};
+
+// --- Categories ---
+export const getCategories = (): string[] => {
+  const stored = localStorage.getItem(CATEGORIES_KEY);
+  if (!stored) {
+    localStorage.setItem(CATEGORIES_KEY, JSON.stringify(INITIAL_CATEGORIES));
+    return INITIAL_CATEGORIES;
+  }
+  return JSON.parse(stored);
+};
+
+export const saveCategories = (categories: string[]) => {
+  localStorage.setItem(CATEGORIES_KEY, JSON.stringify(categories));
 };
 
 // --- Coupons ---

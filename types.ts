@@ -59,6 +59,5 @@ export enum ViewMode {
   ADMIN = 'ADMIN'
 }
 
-export const CATEGORIES = ['All', 'T-Shirts', 'Hoodies', 'Pants', 'Shoes', 'Accessories', 'Limited Drop'];
 export const SIZES = ['S', 'M', 'L', 'XL', 'XXL', 'US 7', 'US 8', 'US 9', 'US 10', 'US 11', 'US 12'];
 export const COLORS = ['Black', 'White', 'Red', 'Blue', 'Green', 'Beige', 'Grey', 'Multi'];
