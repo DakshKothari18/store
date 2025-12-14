@@ -4,10 +4,10 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  font-family: 'Space Grotesk', sans-serif;
-  background-color: #09090b; /* zinc-950 */
-  color: #f4f4f5; /* zinc-100 */
+@layer base {
+  body {
+    @apply font-sans antialiased text-zinc-900 bg-zinc-50 dark:text-zinc-100 dark:bg-zinc-950 transition-colors duration-300;
+  }
 }
 
 /* Custom Scrollbar */
@@ -15,14 +15,13 @@ body {
   width: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: #18181b; 
+  @apply bg-zinc-100 dark:bg-zinc-900;
 }
 ::-webkit-scrollbar-thumb {
-  background: #3f3f46; 
-  border-radius: 4px;
+  @apply bg-zinc-400 dark:bg-zinc-700 rounded;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #52525b; 
+  @apply bg-zinc-500 dark:bg-zinc-600;
 }
 
 /* Utility to hide scrollbar but allow scroll */

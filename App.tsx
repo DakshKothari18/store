@@ -24,7 +24,7 @@ const App: React.FC = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-zinc-950">
+    <div className="min-h-screen transition-colors duration-300">
       {view === ViewMode.ADMIN ? <AdminPanel /> : <StoreFront />}
       
       {/* View Switcher Button */}

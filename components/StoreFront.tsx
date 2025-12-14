@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Product, CartItem, SIZES, COLORS, User, Order } from '../types';
-import { getProducts, getCoupons, getCurrentUser, loginUser, logoutUser, saveUser, getUsers, saveOrder, getOrders, getCategories, addProductRating } from '../services/storageService';
-import { ShoppingBag, X, Plus, Minus, Tag, ExternalLink, Flame, Search, Filter, ChevronDown, SlidersHorizontal, User as UserIcon, LogOut, Package, History, Star, Loader2 } from 'lucide-react';
+import { getProducts, getCoupons, getCurrentUser, loginUser, logoutUser, saveUser, getUsers, saveOrder, getOrders, getCategories, addProductRating, updateUser } from '../services/storageService';
+import { ShoppingBag, X, Plus, Minus, Tag, ExternalLink, Flame, Search, Filter, ChevronDown, SlidersHorizontal, User as UserIcon, LogOut, Package, History, Star, Loader2, List, Heart, Moon, Sun } from 'lucide-react';
 import { WHATSAPP_NUMBER } from '../constants';
 
 const ITEMS_PER_PAGE = 8;
+const FILTERS_STORAGE_KEY = 'dripstore_filters';
+const THEME_STORAGE_KEY = 'dripstore_theme';
 
 export const StoreFront: React.FC = () => {
   // --- Data States ---
@@ -14,24 +16,55 @@ export const StoreFront: React.FC = () => {
   const [availableBrands, setAvailableBrands] = useState<string[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
   
+  // --- Theme State ---
+  const [isDarkMode, setIsDarkMode] = useState(true);
+
+  // --- Filter State Initialization ---
+  // Load initial filters from localStorage or use defaults
+  const getInitialFilters = () => {
+    try {
+      const saved = localStorage.getItem(FILTERS_STORAGE_KEY);
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch (e) {
+      console.error("Failed to parse saved filters", e);
+    }
+    return {
+      category: 'All',
+      size: 'All',
+      color: 'All',
+      brand: 'All',
+      maxPrice: 20000,
+      itemsPerPage: 20
+    };
+  };
+
+  const initialFilters = getInitialFilters();
+
+  const [itemsPerPage, setItemsPerPage] = useState(initialFilters.itemsPerPage);
+  const [visibleCount, setVisibleCount] = useState(initialFilters.itemsPerPage);
+  
+  const [activeCategory, setActiveCategory] = useState(initialFilters.category);
+  const [activeSize, setActiveSize] = useState(initialFilters.size);
+  const [activeColor, setActiveColor] = useState(initialFilters.color);
+  const [activeBrand, setActiveBrand] = useState(initialFilters.brand);
+  const [maxPrice, setMaxPrice] = useState<number>(initialFilters.maxPrice); 
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+
   // --- User & Auth States ---
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authMode, setAuthMode] = useState<'LOGIN' | 'REGISTER'>('LOGIN');
   const [authForm, setAuthForm] = useState({ name: '', email: '', password: '', phone: '' });
+  
+  // Profile Modal State
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [profileTab, setProfileTab] = useState<'ORDERS' | 'WISHLIST'>('ORDERS');
   const [userOrders, setUserOrders] = useState<Order[]>([]);
-
-  // --- Filter States ---
-  const [activeCategory, setActiveCategory] = useState('All');
-  const [activeSize, setActiveSize] = useState('All');
-  const [activeColor, setActiveColor] = useState('All');
-  const [activeBrand, setActiveBrand] = useState('All');
-  const [maxPrice, setMaxPrice] = useState<number>(20000); 
-  const [searchQuery, setSearchQuery] = useState('');
-  const [showFilters, setShowFilters] = useState(false);
+  const [wishlistProducts, setWishlistProducts] = useState<Product[]>([]);
   
   // --- Cart State ---
   const [cartOpen, setCartOpen] = useState(false);
@@ -50,12 +83,24 @@ export const StoreFront: React.FC = () => {
 
   // --- Initialization ---
   useEffect(() => {
+    // Theme Initialization
+    const savedTheme = localStorage.getItem(THEME_STORAGE_KEY);
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    
+    if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+      setIsDarkMode(true);
+      document.documentElement.classList.add('dark');
+    } else {
+      setIsDarkMode(false);
+      document.documentElement.classList.remove('dark');
+    }
+
     // Simulate initial loading
     const timer = setTimeout(() => {
       const loadedProducts = getProducts();
       setProducts(loadedProducts);
       setFilteredProducts(loadedProducts);
-      setDisplayedProducts(loadedProducts.slice(0, ITEMS_PER_PAGE));
+      setDisplayedProducts(loadedProducts.slice(0, itemsPerPage));
       setCategories(getCategories());
       
       const brands = Array.from(new Set(loadedProducts.map(p => p.brand).filter(Boolean))) as string[];
@@ -70,6 +115,31 @@ export const StoreFront: React.FC = () => {
     return () => clearTimeout(timer);
   }, []);
 
+  const toggleTheme = () => {
+    if (isDarkMode) {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem(THEME_STORAGE_KEY, 'light');
+      setIsDarkMode(false);
+    } else {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem(THEME_STORAGE_KEY, 'dark');
+      setIsDarkMode(true);
+    }
+  };
+
+  // --- Persistence Logic ---
+  useEffect(() => {
+    const filtersToSave = {
+      category: activeCategory,
+      size: activeSize,
+      color: activeColor,
+      brand: activeBrand,
+      maxPrice: maxPrice,
+      itemsPerPage: itemsPerPage
+    };
+    localStorage.setItem(FILTERS_STORAGE_KEY, JSON.stringify(filtersToSave));
+  }, [activeCategory, activeSize, activeColor, activeBrand, maxPrice, itemsPerPage]);
+
   // --- Infinite Scroll Logic ---
   useEffect(() => {
     const handleScroll = () => {
@@ -77,13 +147,13 @@ export const StoreFront: React.FC = () => {
         window.innerHeight + window.scrollY >= document.body.offsetHeight - 500 &&
         visibleCount < filteredProducts.length
       ) {
-        setVisibleCount(prev => prev + ITEMS_PER_PAGE);
+        setVisibleCount(prev => prev + itemsPerPage);
       }
     };
 
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
-  }, [visibleCount, filteredProducts.length]);
+  }, [visibleCount, filteredProducts.length, itemsPerPage]);
 
   useEffect(() => {
     // Update displayed products whenever visibleCount or filtered list changes
@@ -119,7 +189,8 @@ export const StoreFront: React.FC = () => {
       email: authForm.email,
       password: authForm.password,
       phone: authForm.phone,
-      joinedDate: new Date().toISOString()
+      joinedDate: new Date().toISOString(),
+      wishlist: []
     };
 
     saveUser(newUser);
@@ -139,8 +210,41 @@ export const StoreFront: React.FC = () => {
     if (currentUser) {
       const orders = getOrders(currentUser.id);
       setUserOrders(orders);
+      
+      const wishlist = products.filter(p => currentUser.wishlist?.includes(p.id));
+      setWishlistProducts(wishlist);
+      
       setShowProfileModal(true);
     }
+  };
+
+  const toggleWishlist = (e: React.MouseEvent, product: Product) => {
+      e.stopPropagation();
+      if (!currentUser) {
+          setShowAuthModal(true);
+          return;
+      }
+      
+      const currentWishlist = currentUser.wishlist || [];
+      let newWishlist;
+      if (currentWishlist.includes(product.id)) {
+          newWishlist = currentWishlist.filter(id => id !== product.id);
+      } else {
+          newWishlist = [...currentWishlist, product.id];
+      }
+
+      const updatedUser = { ...currentUser, wishlist: newWishlist };
+      updateUser(updatedUser);
+      setCurrentUser(updatedUser);
+      
+      // Update local wishlist state if modal is open
+      if (showProfileModal) {
+         setWishlistProducts(products.filter(p => newWishlist.includes(p.id)));
+      }
+  };
+
+  const isInWishlist = (productId: string) => {
+      return currentUser?.wishlist?.includes(productId) || false;
   };
 
   // --- Filter Logic ---
@@ -172,9 +276,9 @@ export const StoreFront: React.FC = () => {
     }
     
     setFilteredProducts(result);
-    // Reset scroll when filters change
-    setVisibleCount(ITEMS_PER_PAGE); 
-  }, [activeCategory, activeSize, activeColor, activeBrand, maxPrice, searchQuery, products]);
+    // Reset scroll when filters change, respecting current items per page setting
+    setVisibleCount(itemsPerPage); 
+  }, [activeCategory, activeSize, activeColor, activeBrand, maxPrice, searchQuery, products, itemsPerPage]);
 
   // --- Cart & Checkout Logic ---
   const addToCart = (product: Product, size: string) => {
@@ -304,7 +408,9 @@ export const StoreFront: React.FC = () => {
       setActiveColor('All');
       setActiveBrand('All');
       setMaxPrice(20000);
+      setItemsPerPage(20);
       setSearchQuery('');
+      localStorage.removeItem(FILTERS_STORAGE_KEY); // Clear saved filters
   }
 
   return (
@@ -329,7 +435,16 @@ export const StoreFront: React.FC = () => {
              />
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 md:gap-4">
+            {/* Theme Toggle */}
+            <button
+              onClick={toggleTheme}
+              className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition text-zinc-600 dark:text-zinc-400 hover:text-black dark:hover:text-white"
+              aria-label="Toggle Theme"
+            >
+              {isDarkMode ? <Sun size={24} /> : <Moon size={24} />}
+            </button>
+
             {/* User Icon */}
             <button 
                 onClick={() => currentUser ? openProfile() : setShowAuthModal(true)}
@@ -424,8 +539,8 @@ export const StoreFront: React.FC = () => {
             </button>
           </div>
 
-          <div className={`overflow-hidden transition-all duration-500 ease-in-out ${showFilters ? 'max-h-[500px] opacity-100 py-4' : 'max-h-0 opacity-0 py-0'}`}>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6 p-4 bg-zinc-50 dark:bg-zinc-900/50 rounded-xl border border-zinc-200 dark:border-zinc-800/50">
+          <div className={`overflow-hidden transition-all duration-500 ease-in-out ${showFilters ? 'max-h-[1200px] opacity-100 py-4' : 'max-h-0 opacity-0 py-0'}`}>
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-6 p-4 bg-zinc-50 dark:bg-zinc-900/50 rounded-xl border border-zinc-200 dark:border-zinc-800/50 md:overflow-visible overflow-y-auto max-h-[60vh] md:max-h-none">
                   <div className="space-y-2">
                       <div className="flex items-center gap-2 text-zinc-500 text-[10px] font-bold uppercase tracking-widest">
                           <Filter size={12}/> Size
@@ -480,14 +595,29 @@ export const StoreFront: React.FC = () => {
                         className="w-full accent-lime-400 h-1 bg-zinc-200 dark:bg-zinc-800 rounded-lg appearance-none cursor-pointer"
                       />
                   </div>
+
+                  <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-zinc-500 text-[10px] font-bold uppercase tracking-widest">
+                          <List size={12}/> Items per Load
+                      </div>
+                      <select 
+                        value={itemsPerPage}
+                        onChange={(e) => setItemsPerPage(Number(e.target.value))}
+                        className="w-full bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg p-2 text-sm text-zinc-800 dark:text-zinc-300 focus:border-lime-400 outline-none"
+                      >
+                          <option value={20}>20</option>
+                          <option value={50}>50</option>
+                          <option value={100}>100</option>
+                      </select>
+                  </div>
               </div>
           </div>
           
           <button 
                 onClick={() => setShowFilters(!showFilters)}
-                className="md:hidden w-full py-2 text-center text-xs font-bold text-zinc-500 uppercase tracking-widest border border-zinc-200 dark:border-zinc-800 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-900 transition"
+                className="md:hidden w-full py-3 text-center text-xs font-bold text-zinc-500 uppercase tracking-widest border border-zinc-200 dark:border-zinc-800 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-900 transition flex items-center justify-center gap-2 relative z-10"
           >
-              {showFilters ? 'Hide Filters' : 'Show Filters'}
+              <SlidersHorizontal size={14} /> {showFilters ? 'Hide Filters' : 'Show Filters'}
           </button>
         </div>
       </div>
@@ -507,93 +637,119 @@ export const StoreFront: React.FC = () => {
       /* Product Grid */
       <div className="max-w-7xl mx-auto px-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-12">
-            {displayedProducts.map(product => (
-            <div key={product.id} className="group cursor-pointer" onClick={() => { setSelectedProduct(product); setActiveImageIndex(0); }}>
-                <div className="aspect-[3/4] overflow-hidden bg-zinc-200 dark:bg-zinc-900 relative rounded-xl mb-4 group border border-transparent dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition">
-                    {product.isNewDrop && (
-                        <div className="absolute top-3 left-3 bg-white text-black text-[10px] font-bold px-2 py-1 rounded-sm z-10 uppercase tracking-widest shadow-lg">
-                            New
-                        </div>
-                    )}
-                    {product.originalPrice && product.originalPrice > product.price && (
-                        <div className="absolute top-3 right-3 bg-lime-400 text-black text-[10px] font-bold px-2 py-1 rounded-sm z-10 shadow-lg">
-                            -{Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)}%
-                        </div>
-                    )}
-                    
-                    {/* Product Image Handling with Hover Effect */}
-                    <img 
-                        src={product.images[0]} 
-                        alt={product.name}
-                        className={`w-full h-full object-cover transition duration-700 ease-out ${product.images[1] ? 'group-hover:opacity-0' : 'group-hover:scale-110'}`}
-                    />
-                    
-                    {product.images[1] && (
-                        <img 
-                            src={product.images[1]}
-                            alt={product.name}
-                            className="absolute inset-0 w-full h-full object-cover opacity-0 group-hover:opacity-100 transition duration-700 ease-out scale-105"
-                        />
-                    )}
-                    
-                    <div className={`absolute inset-0 bg-black/40 transition duration-300 flex items-end p-4 ${quickAddProductId === product.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
-                        {quickAddProductId === product.id ? (
-                            <div 
-                                className="w-full bg-white dark:bg-zinc-950/95 backdrop-blur-md p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 animate-in slide-in-from-bottom-4 shadow-2xl" 
-                                onClick={e => e.stopPropagation()}
-                            >
-                                <div className="flex justify-between items-center mb-3">
-                                    <span className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest">Select Size</span>
-                                    <button onClick={() => setQuickAddProductId(null)} className="text-zinc-500 hover:text-black dark:hover:text-white"><X size={14}/></button>
+            {displayedProducts.map(product => {
+                const isOutOfStock = product.stock <= 0;
+                return (
+                <div key={product.id} className="group cursor-pointer" onClick={() => { setSelectedProduct(product); setActiveImageIndex(0); }}>
+                    <div className="aspect-[3/4] overflow-hidden bg-zinc-200 dark:bg-zinc-900 relative rounded-xl mb-4 group border border-transparent dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition">
+                        
+                        {/* Status Badges */}
+                        <div className="absolute top-3 left-3 z-10 flex flex-col gap-2">
+                            {isOutOfStock ? (
+                                <div className="bg-red-500 text-white text-[10px] font-bold px-2 py-1 rounded-sm uppercase tracking-widest shadow-lg">
+                                    Sold Out
                                 </div>
-                                <div className="grid grid-cols-4 gap-2">
-                                    {product.sizes.map(size => (
-                                        <button 
-                                            key={size}
-                                            onClick={() => handleQuickAdd(product, size)}
-                                            className="aspect-square rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-lime-400 dark:hover:bg-lime-400 hover:text-black border border-zinc-200 dark:border-zinc-700 hover:border-lime-400 dark:hover:border-lime-400 text-[10px] md:text-xs font-bold transition flex items-center justify-center p-1 text-zinc-900 dark:text-zinc-200"
-                                        >
-                                            {size}
-                                        </button>
-                                    ))}
-                                </div>
+                            ) : (
+                                product.isNewDrop && (
+                                    <div className="bg-white text-black text-[10px] font-bold px-2 py-1 rounded-sm uppercase tracking-widest shadow-lg">
+                                        New
+                                    </div>
+                                )
+                            )}
+                        </div>
+
+                        {/* Wishlist Button */}
+                        <button 
+                            onClick={(e) => toggleWishlist(e, product)}
+                            className="absolute top-3 right-3 z-20 p-2 bg-white/10 backdrop-blur-sm rounded-full hover:bg-white hover:text-red-500 transition text-white"
+                        >
+                            <Heart size={18} fill={isInWishlist(product.id) ? "currentColor" : "none"} className={isInWishlist(product.id) ? "text-red-500" : ""} />
+                        </button>
+                        
+                        {product.originalPrice && product.originalPrice > product.price && !isOutOfStock && (
+                            <div className="absolute top-3 right-12 bg-lime-400 text-black text-[10px] font-bold px-2 py-1 rounded-sm z-10 shadow-lg">
+                                -{Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)}%
                             </div>
-                        ) : (
-                            <button 
-                                onClick={(e) => { e.stopPropagation(); setQuickAddProductId(product.id); }}
-                                className="w-full bg-white hover:bg-lime-400 text-black font-bold py-3 rounded-xl transform translate-y-4 group-hover:translate-y-0 transition duration-300 shadow-xl flex items-center justify-center gap-2"
-                            >
-                                <ShoppingBag size={16} /> Add to Cart
-                            </button>
+                        )}
+                        
+                        {/* Product Image */}
+                        <div className={isOutOfStock ? "opacity-60 grayscale" : ""}>
+                            <img 
+                                src={product.images[0]} 
+                                alt={product.name}
+                                className={`w-full h-full object-cover transition duration-700 ease-out ${product.images[1] ? 'group-hover:opacity-0' : 'group-hover:scale-110'}`}
+                            />
+                            
+                            {product.images[1] && (
+                                <img 
+                                    src={product.images[1]}
+                                    alt={product.name}
+                                    className="absolute inset-0 w-full h-full object-cover opacity-0 group-hover:opacity-100 transition duration-700 ease-out scale-105"
+                                />
+                            )}
+                        </div>
+                        
+                        {/* Quick Add Overlay - Hide if Out of Stock */}
+                        {!isOutOfStock && (
+                            <div className={`absolute inset-0 bg-black/40 transition duration-300 flex items-end p-4 ${quickAddProductId === product.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+                                {quickAddProductId === product.id ? (
+                                    <div 
+                                        className="w-full bg-white dark:bg-zinc-950/95 backdrop-blur-md p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 animate-in slide-in-from-bottom-4 shadow-2xl" 
+                                        onClick={e => e.stopPropagation()}
+                                    >
+                                        <div className="flex justify-between items-center mb-3">
+                                            <span className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest">Select Size</span>
+                                            <button onClick={() => setQuickAddProductId(null)} className="text-zinc-500 hover:text-black dark:hover:text-white"><X size={14}/></button>
+                                        </div>
+                                        <div className="grid grid-cols-4 gap-2">
+                                            {product.sizes.map(size => (
+                                                <button 
+                                                    key={size}
+                                                    onClick={() => handleQuickAdd(product, size)}
+                                                    className="aspect-square rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-lime-400 dark:hover:bg-lime-400 hover:text-black border border-zinc-200 dark:border-zinc-700 hover:border-lime-400 dark:hover:border-lime-400 text-[10px] md:text-xs font-bold transition flex items-center justify-center p-1 text-zinc-900 dark:text-zinc-200"
+                                                >
+                                                    {size}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <button 
+                                        onClick={(e) => { e.stopPropagation(); setQuickAddProductId(product.id); }}
+                                        className="w-full bg-white hover:bg-lime-400 text-black font-bold py-3 rounded-xl transform translate-y-4 group-hover:translate-y-0 transition duration-300 shadow-xl flex items-center justify-center gap-2"
+                                    >
+                                        <ShoppingBag size={16} /> Add to Cart
+                                    </button>
+                                )}
+                            </div>
                         )}
                     </div>
-                </div>
-                
-                <div>
-                <div className="flex justify-between items-start mb-1">
-                    <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">{product.brand || 'DripStore'}</span>
-                    <span className="text-[10px] text-zinc-500 dark:text-zinc-600">{product.color}</span>
-                </div>
-                <h3 className="font-bold text-lg leading-tight mb-1 text-zinc-900 dark:text-white group-hover:text-lime-500 dark:group-hover:text-lime-400 transition">{product.name}</h3>
-                <div className="flex justify-between items-end">
+                    
                     <div>
-                        <p className="text-zinc-500 text-xs uppercase tracking-wide mb-1">{product.category}</p>
-                        {getAverageRating(product.ratings) && (
-                            <div className="flex items-center gap-1 text-[10px] font-bold text-yellow-500">
-                                <Star size={10} fill="currentColor" /> {getAverageRating(product.ratings)}
-                            </div>
-                        )}
+                    <div className="flex justify-between items-start mb-1">
+                        <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">{product.brand || 'DripStore'}</span>
+                        <span className="text-[10px] text-zinc-500 dark:text-zinc-600">{product.color}</span>
                     </div>
-                    <div className="font-mono flex gap-2 items-center">
-                        {product.originalPrice && product.originalPrice > product.price && (
-                            <span className="text-zinc-400 line-through text-xs">₹{product.originalPrice.toLocaleString('en-IN')}</span>
-                        )}
-                        <span className="text-zinc-900 dark:text-zinc-100">₹{product.price.toLocaleString('en-IN')}</span>
+                    <h3 className="font-bold text-lg leading-tight mb-1 text-zinc-900 dark:text-white group-hover:text-lime-500 dark:group-hover:text-lime-400 transition">{product.name}</h3>
+                    <div className="flex justify-between items-end">
+                        <div>
+                            <p className="text-zinc-500 text-xs uppercase tracking-wide mb-1">{product.category}</p>
+                            {getAverageRating(product.ratings) && (
+                                <div className="flex items-center gap-1 text-[10px] font-bold text-yellow-500">
+                                    <Star size={10} fill="currentColor" /> {getAverageRating(product.ratings)}
+                                </div>
+                            )}
+                        </div>
+                        <div className="font-mono flex gap-2 items-center">
+                            {product.originalPrice && product.originalPrice > product.price && (
+                                <span className="text-zinc-400 line-through text-xs">₹{product.originalPrice.toLocaleString('en-IN')}</span>
+                            )}
+                            <span className="text-zinc-900 dark:text-zinc-100">₹{product.price.toLocaleString('en-IN')}</span>
+                        </div>
+                    </div>
                     </div>
                 </div>
-                </div>
-            </div>
-            ))}
+            )})}
         </div>
         
         {/* Loading Indicator for Infinite Scroll */}
@@ -603,13 +759,6 @@ export const StoreFront: React.FC = () => {
             </div>
         )}
       </div>
-      )}
-
-      {!isLoading && filteredProducts.length === 0 && (
-          <div className="text-center py-20 px-4">
-              <p className="text-zinc-500 text-lg">No items found matching your filters.</p>
-              <button onClick={clearFilters} className="mt-6 text-lime-500 dark:text-lime-400 underline font-bold">Clear All Filters</button>
-          </div>
       )}
 
       {/* --- MODALS --- */}
@@ -629,6 +778,13 @@ export const StoreFront: React.FC = () => {
             <div className="w-full md:w-1/2 bg-zinc-100 dark:bg-zinc-900 flex flex-col h-1/2 md:h-full">
                 <div className="flex-1 relative bg-zinc-200 dark:bg-zinc-800 overflow-hidden">
                     <img src={selectedProduct.images[activeImageIndex]} alt={selectedProduct.name} className="w-full h-full object-cover transition-all duration-300" />
+                    {selectedProduct.stock <= 0 && (
+                         <div className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-[2px]">
+                             <span className="text-white text-3xl font-black uppercase tracking-widest border-4 border-white px-6 py-2 rotate-[-12deg]">
+                                 Sold Out
+                             </span>
+                         </div>
+                    )}
                 </div>
                 {selectedProduct.images.length > 1 && (
                     <div className="flex gap-2 p-4 overflow-x-auto bg-white dark:bg-zinc-950 border-t border-zinc-200 dark:border-zinc-900 no-scrollbar">
@@ -650,7 +806,12 @@ export const StoreFront: React.FC = () => {
                 <div className="mb-auto">
                     <div className="flex justify-between items-center mb-2">
                         <span className="text-lime-600 dark:text-lime-400 text-xs font-bold uppercase tracking-widest block">DripStore Exclusive</span>
-                        <span className="text-zinc-500 text-xs font-bold uppercase">{selectedProduct.brand}</span>
+                        <div className="flex items-center gap-3">
+                             <button onClick={(e) => toggleWishlist(e, selectedProduct)} className="text-zinc-500 hover:text-red-500 transition">
+                                 <Heart size={20} fill={isInWishlist(selectedProduct.id) ? "currentColor" : "none"} className={isInWishlist(selectedProduct.id) ? "text-red-500" : ""} />
+                             </button>
+                             <span className="text-zinc-500 text-xs font-bold uppercase">{selectedProduct.brand}</span>
+                        </div>
                     </div>
                     <h2 className="text-3xl md:text-5xl font-black mb-6 uppercase leading-[0.9]">{selectedProduct.name}</h2>
                     
@@ -681,8 +842,12 @@ export const StoreFront: React.FC = () => {
                         {selectedProduct.originalPrice && selectedProduct.originalPrice > selectedProduct.price && (
                             <span className="text-zinc-400 line-through text-lg">₹{selectedProduct.originalPrice.toLocaleString('en-IN')}</span>
                         )}
-                        {selectedProduct.originalPrice && selectedProduct.originalPrice > selectedProduct.price && (
-                             <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-1 rounded">SAVE {Math.round(((selectedProduct.originalPrice - selectedProduct.price) / selectedProduct.originalPrice) * 100)}%</span>
+                        {selectedProduct.stock <= 0 ? (
+                            <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-1 rounded">OUT OF STOCK</span>
+                        ) : (
+                             selectedProduct.originalPrice && selectedProduct.originalPrice > selectedProduct.price && (
+                                <span className="bg-lime-400 text-black text-[10px] font-bold px-2 py-1 rounded">SAVE {Math.round(((selectedProduct.originalPrice - selectedProduct.price) / selectedProduct.originalPrice) * 100)}%</span>
+                             )
                         )}
                     </div>
                     
@@ -713,8 +878,13 @@ export const StoreFront: React.FC = () => {
                                 {selectedProduct.sizes.map(size => (
                                     <button
                                         key={size}
-                                        onClick={() => addToCart(selectedProduct, size)}
-                                        className="min-w-[56px] h-14 px-2 rounded bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-lime-500 dark:hover:border-lime-400 hover:bg-lime-50 dark:hover:bg-lime-400/10 hover:text-lime-600 dark:hover:text-lime-400 transition flex items-center justify-center font-mono text-sm font-bold text-zinc-900 dark:text-zinc-100"
+                                        onClick={() => selectedProduct.stock > 0 && addToCart(selectedProduct, size)}
+                                        disabled={selectedProduct.stock <= 0}
+                                        className={`min-w-[56px] h-14 px-2 rounded border transition flex items-center justify-center font-mono text-sm font-bold ${
+                                            selectedProduct.stock <= 0 
+                                            ? 'bg-zinc-100 dark:bg-zinc-900 text-zinc-400 border-zinc-200 dark:border-zinc-800 cursor-not-allowed opacity-50'
+                                            : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 hover:border-lime-500 dark:hover:border-lime-400 hover:bg-lime-50 dark:hover:bg-lime-400/10 hover:text-lime-600 dark:hover:text-lime-400 text-zinc-900 dark:text-zinc-100'
+                                        }`}
                                     >
                                         {size}
                                     </button>
@@ -827,7 +997,7 @@ export const StoreFront: React.FC = () => {
         </div>
       )}
 
-      {/* Profile Modal (Order History) */}
+      {/* Profile Modal (Order History & Wishlist) */}
       {showProfileModal && currentUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 dark:bg-black/80 backdrop-blur-sm">
            <div className="bg-white dark:bg-zinc-900 w-full max-w-2xl rounded-2xl border border-zinc-200 dark:border-zinc-800 flex flex-col max-h-[80vh] shadow-2xl text-zinc-900 dark:text-zinc-100">
@@ -847,40 +1017,100 @@ export const StoreFront: React.FC = () => {
                  </div>
               </div>
               
+              {/* Profile Tabs */}
+              <div className="flex border-b border-zinc-200 dark:border-zinc-800">
+                  <button 
+                    onClick={() => setProfileTab('ORDERS')}
+                    className={`flex-1 py-3 text-xs font-bold uppercase tracking-widest transition ${profileTab === 'ORDERS' ? 'text-lime-500 dark:text-lime-400 border-b-2 border-lime-500 dark:border-lime-400' : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'}`}
+                  >
+                      Orders
+                  </button>
+                  <button 
+                    onClick={() => setProfileTab('WISHLIST')}
+                    className={`flex-1 py-3 text-xs font-bold uppercase tracking-widest transition ${profileTab === 'WISHLIST' ? 'text-lime-500 dark:text-lime-400 border-b-2 border-lime-500 dark:border-lime-400' : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'}`}
+                  >
+                      Wishlist ({wishlistProducts.length})
+                  </button>
+              </div>
+
               <div className="flex-1 overflow-y-auto p-6">
-                 <h3 className="text-sm font-bold text-zinc-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-                     <History size={16}/> Order History
-                 </h3>
-                 
-                 {userOrders.length === 0 ? (
-                     <div className="text-center py-10 text-zinc-500 bg-zinc-50 dark:bg-zinc-950/50 rounded-lg border border-zinc-200 dark:border-zinc-800 border-dashed">
-                         No orders yet.
-                     </div>
+                 {profileTab === 'ORDERS' ? (
+                     <>
+                        <h3 className="text-sm font-bold text-zinc-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                            <History size={16}/> Order History
+                        </h3>
+                        
+                        {userOrders.length === 0 ? (
+                            <div className="text-center py-10 text-zinc-500 bg-zinc-50 dark:bg-zinc-950/50 rounded-lg border border-zinc-200 dark:border-zinc-800 border-dashed">
+                                No orders yet.
+                            </div>
+                        ) : (
+                            <div className="space-y-4">
+                                {userOrders.map(order => (
+                                    <div key={order.id} className="bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg p-4">
+                                        <div className="flex justify-between items-start mb-4 pb-4 border-b border-zinc-200 dark:border-zinc-900">
+                                            <div>
+                                                <span className="text-lime-600 dark:text-lime-400 font-mono text-sm block mb-1">{order.id}</span>
+                                                <span className="text-xs text-zinc-500">{new Date(order.date).toLocaleDateString()} at {new Date(order.date).toLocaleTimeString()}</span>
+                                            </div>
+                                            <div className="text-right">
+                                                <span className="block font-bold text-zinc-900 dark:text-white">₹{order.finalAmount.toLocaleString('en-IN')}</span>
+                                                <span className="text-[10px] bg-zinc-200 dark:bg-zinc-800 px-2 py-0.5 rounded text-zinc-500 dark:text-zinc-400 uppercase">{order.status}</span>
+                                            </div>
+                                        </div>
+                                        <div className="space-y-2">
+                                            {order.items.map((item, i) => (
+                                                <div key={i} className="flex justify-between text-sm text-zinc-600 dark:text-zinc-400">
+                                                    <span>{item.name} <span className="text-zinc-500 dark:text-zinc-600 text-xs">({item.selectedSize}) x{item.quantity}</span></span>
+                                                    <span>₹{(item.price * item.quantity).toLocaleString('en-IN')}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                     </>
                  ) : (
-                     <div className="space-y-4">
-                         {userOrders.map(order => (
-                             <div key={order.id} className="bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg p-4">
-                                 <div className="flex justify-between items-start mb-4 pb-4 border-b border-zinc-200 dark:border-zinc-900">
-                                     <div>
-                                         <span className="text-lime-600 dark:text-lime-400 font-mono text-sm block mb-1">{order.id}</span>
-                                         <span className="text-xs text-zinc-500">{new Date(order.date).toLocaleDateString()} at {new Date(order.date).toLocaleTimeString()}</span>
-                                     </div>
-                                     <div className="text-right">
-                                         <span className="block font-bold text-zinc-900 dark:text-white">₹{order.finalAmount.toLocaleString('en-IN')}</span>
-                                         <span className="text-[10px] bg-zinc-200 dark:bg-zinc-800 px-2 py-0.5 rounded text-zinc-500 dark:text-zinc-400 uppercase">{order.status}</span>
-                                     </div>
-                                 </div>
-                                 <div className="space-y-2">
-                                     {order.items.map((item, i) => (
-                                         <div key={i} className="flex justify-between text-sm text-zinc-600 dark:text-zinc-400">
-                                             <span>{item.name} <span className="text-zinc-500 dark:text-zinc-600 text-xs">({item.selectedSize}) x{item.quantity}</span></span>
-                                             <span>₹{(item.price * item.quantity).toLocaleString('en-IN')}</span>
-                                         </div>
-                                     ))}
-                                 </div>
-                             </div>
-                         ))}
-                     </div>
+                     <>
+                        <h3 className="text-sm font-bold text-zinc-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                            <Heart size={16}/> Your Wishlist
+                        </h3>
+                        {wishlistProducts.length === 0 ? (
+                            <div className="text-center py-10 text-zinc-500 bg-zinc-50 dark:bg-zinc-950/50 rounded-lg border border-zinc-200 dark:border-zinc-800 border-dashed">
+                                Your wishlist is empty.
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-2 gap-4">
+                                {wishlistProducts.map(product => (
+                                    <div key={product.id} className="bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg overflow-hidden group">
+                                        <div className="relative aspect-square">
+                                            <img src={product.images[0]} className="w-full h-full object-cover" />
+                                            <button 
+                                                onClick={(e) => toggleWishlist(e, product)}
+                                                className="absolute top-2 right-2 p-1.5 bg-black/50 text-white rounded-full hover:bg-red-500 transition"
+                                            >
+                                                <X size={14} />
+                                            </button>
+                                        </div>
+                                        <div className="p-3">
+                                            <div className="font-bold text-sm truncate">{product.name}</div>
+                                            <div className="text-xs text-zinc-500 mb-2">₹{product.price.toLocaleString('en-IN')}</div>
+                                            <button 
+                                                onClick={() => {
+                                                    setShowProfileModal(false);
+                                                    setSelectedProduct(product);
+                                                }}
+                                                className="w-full bg-zinc-900 dark:bg-zinc-100 text-white dark:text-black text-[10px] font-bold py-2 rounded uppercase tracking-wide hover:opacity-90"
+                                            >
+                                                View Product
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                     </>
                  )}
               </div>
            </div>

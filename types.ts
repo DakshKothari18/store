@@ -42,6 +42,7 @@ export interface User {
   password: string; // Stored in plaintext for this demo (Not for production)
   phone?: string;
   joinedDate: string;
+  wishlist?: string[];
 }
 
 export interface Order {

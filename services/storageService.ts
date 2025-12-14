@@ -75,6 +75,18 @@ export const saveUser = (user: User) => {
   localStorage.setItem(USERS_KEY, JSON.stringify(users));
 };
 
+export const updateUser = (user: User) => {
+    const users = getUsers();
+    const updatedUsers = users.map(u => u.id === user.id ? user : u);
+    localStorage.setItem(USERS_KEY, JSON.stringify(updatedUsers));
+    
+    // Also update current user if it matches
+    const currentUser = getCurrentUser();
+    if (currentUser && currentUser.id === user.id) {
+        localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
+    }
+};
+
 export const getCurrentUser = (): User | null => {
   const stored = localStorage.getItem(CURRENT_USER_KEY);
   return stored ? JSON.parse(stored) : null;
