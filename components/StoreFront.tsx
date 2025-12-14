@@ -1076,7 +1076,15 @@ export const StoreFront: React.FC = () => {
                                             </div>
                                             <div className="text-right">
                                                 <span className="block font-bold text-zinc-900 dark:text-white">₹{order.finalAmount.toLocaleString('en-IN')}</span>
-                                                <span className="text-[10px] bg-zinc-200 dark:bg-zinc-800 px-2 py-0.5 rounded text-zinc-500 dark:text-zinc-400 uppercase">{order.status}</span>
+                                                <span className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase ${
+                                                    order.status === 'PENDING' ? 'bg-yellow-500/20 text-yellow-600 dark:text-yellow-400' :
+                                                    order.status === 'CONFIRMED' ? 'bg-blue-500/20 text-blue-600 dark:text-blue-400' :
+                                                    order.status === 'IN_TRANSIT' ? 'bg-purple-500/20 text-purple-600 dark:text-purple-400' :
+                                                    order.status === 'DELIVERED' ? 'bg-green-500/20 text-green-600 dark:text-green-400' :
+                                                    'bg-red-500/20 text-red-600 dark:text-red-400'
+                                                }`}>
+                                                    {order.status.replace('_', ' ')}
+                                                </span>
                                             </div>
                                         </div>
                                         <div className="space-y-2">

@@ -113,11 +113,17 @@ export const getOrders = (userId?: string): Order[] => {
   if (userId) {
     return allOrders.filter(o => o.userId === userId).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }
-  return allOrders;
+  return allOrders.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 };
 
 export const saveOrder = (order: Order) => {
   const orders = getOrders();
   orders.push(order);
   localStorage.setItem(ORDERS_KEY, JSON.stringify(orders));
+};
+
+export const updateOrder = (updatedOrder: Order) => {
+  const orders = getOrders();
+  const newOrders = orders.map(o => o.id === updatedOrder.id ? updatedOrder : o);
+  localStorage.setItem(ORDERS_KEY, JSON.stringify(newOrders));
 };

@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { Product, Coupon, SIZES, COLORS, ProductVariant } from '../types';
-import { getProducts, saveProducts, getCoupons, saveCoupons, getCategories, saveCategories } from '../services/storageService';
+import { Product, Coupon, SIZES, COLORS, ProductVariant, Order } from '../types';
+import { getProducts, saveProducts, getCoupons, saveCoupons, getCategories, saveCategories, getOrders, updateOrder } from '../services/storageService';
 import { generateProductContent } from '../services/geminiService';
-import { Trash2, Plus, Sparkles, Loader2, Edit, Package, Tag, Save, X, Layers, Upload, List, Star } from 'lucide-react';
+import { Trash2, Plus, Sparkles, Loader2, Edit, Package, Tag, Save, X, Layers, Upload, List, Star, ClipboardList, CheckCircle, Truck, ShoppingBag, AlertCircle } from 'lucide-react';
 
 export const AdminPanel: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'products' | 'coupons' | 'categories'>('products');
+  const [activeTab, setActiveTab] = useState<'products' | 'coupons' | 'categories' | 'orders'>('products');
   
   // Data State
   const [products, setProducts] = useState<Product[]>([]);
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
 
   // UI State
   const [isEditingProduct, setIsEditingProduct] = useState(false);
@@ -47,6 +48,7 @@ export const AdminPanel: React.FC = () => {
     setProducts(getProducts());
     setCoupons(getCoupons());
     setCategories(getCategories());
+    setOrders(getOrders());
   }, []);
 
   // --- Product Handlers ---
@@ -252,10 +254,31 @@ export const AdminPanel: React.FC = () => {
       }
   };
 
+  // --- Order Handlers ---
+  const handleOrderStatusChange = (orderId: string, newStatus: Order['status']) => {
+      const order = orders.find(o => o.id === orderId);
+      if (order) {
+          const updatedOrder = { ...order, status: newStatus };
+          updateOrder(updatedOrder);
+          setOrders(orders.map(o => o.id === orderId ? updatedOrder : o));
+      }
+  };
+
   const getAverageRating = (ratings?: number[]) => {
       if (!ratings || ratings.length === 0) return 'N/A';
       const sum = ratings.reduce((a, b) => a + b, 0);
       return (sum / ratings.length).toFixed(1);
+  };
+
+  const getStatusColor = (status: Order['status']) => {
+      switch (status) {
+          case 'PENDING': return 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20';
+          case 'CONFIRMED': return 'bg-blue-500/10 text-blue-500 border-blue-500/20';
+          case 'IN_TRANSIT': return 'bg-purple-500/10 text-purple-500 border-purple-500/20';
+          case 'DELIVERED': return 'bg-green-500/10 text-green-500 border-green-500/20';
+          case 'CANCELLED': return 'bg-red-500/10 text-red-500 border-red-500/20';
+          default: return 'bg-zinc-500/10 text-zinc-500 border-zinc-500/20';
+      }
   };
 
   return (
@@ -274,6 +297,12 @@ export const AdminPanel: React.FC = () => {
                 className={`flex items-center gap-3 px-4 py-3 rounded-lg transition whitespace-nowrap ${activeTab === 'products' ? 'bg-lime-400 text-black font-bold' : 'text-zinc-400 hover:bg-zinc-800'}`}
             >
                 <Package size={20} /> Products
+            </button>
+            <button 
+                onClick={() => setActiveTab('orders')}
+                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition whitespace-nowrap ${activeTab === 'orders' ? 'bg-lime-400 text-black font-bold' : 'text-zinc-400 hover:bg-zinc-800'}`}
+            >
+                <ClipboardList size={20} /> Orders
             </button>
             <button 
                 onClick={() => setActiveTab('categories')}
@@ -372,6 +401,86 @@ export const AdminPanel: React.FC = () => {
                     </div>
                 </div>
             </div>
+        )}
+
+        {/* ORDERS TAB */}
+        {activeTab === 'orders' && (
+             <div className="space-y-6">
+                 <div className="flex justify-between items-center">
+                    <h2 className="text-3xl font-bold tracking-tight">Orders</h2>
+                </div>
+                
+                <div className="bg-zinc-900 rounded-xl overflow-hidden border border-zinc-800">
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left">
+                            <thead className="bg-zinc-950 text-zinc-400 uppercase text-xs tracking-wider">
+                                <tr>
+                                    <th className="p-4">Order ID</th>
+                                    <th className="p-4">Date</th>
+                                    <th className="p-4">Items</th>
+                                    <th className="p-4">Total</th>
+                                    <th className="p-4">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-zinc-800 text-sm">
+                                {orders.map(order => (
+                                    <tr key={order.id} className="hover:bg-zinc-800/50 transition">
+                                        <td className="p-4 font-mono text-lime-400">{order.id}</td>
+                                        <td className="p-4 text-zinc-400">
+                                            {new Date(order.date).toLocaleDateString()}
+                                            <div className="text-[10px]">{new Date(order.date).toLocaleTimeString()}</div>
+                                        </td>
+                                        <td className="p-4">
+                                            <div className="space-y-1">
+                                                {order.items.map((item, idx) => (
+                                                    <div key={idx} className="flex items-center gap-2 text-zinc-300 text-xs">
+                                                        <span className="text-zinc-500 font-bold">{item.quantity}x</span> 
+                                                        {item.name} 
+                                                        <span className="bg-zinc-800 px-1.5 py-0.5 rounded text-[10px]">{item.selectedSize}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </td>
+                                        <td className="p-4 font-mono font-bold">
+                                            ₹{order.finalAmount.toLocaleString('en-IN')}
+                                        </td>
+                                        <td className="p-4">
+                                            <div className="flex items-center gap-2">
+                                                <select 
+                                                    value={order.status}
+                                                    onChange={(e) => handleOrderStatusChange(order.id, e.target.value as Order['status'])}
+                                                    className={`bg-zinc-950 border border-zinc-700 rounded px-2 py-1 text-xs font-bold uppercase tracking-wide outline-none focus:border-lime-400 ${
+                                                        order.status === 'PENDING' ? 'text-yellow-500' :
+                                                        order.status === 'CONFIRMED' ? 'text-blue-500' :
+                                                        order.status === 'IN_TRANSIT' ? 'text-purple-500' :
+                                                        order.status === 'DELIVERED' ? 'text-green-500' :
+                                                        'text-red-500'
+                                                    }`}
+                                                >
+                                                    <option value="PENDING">Pending</option>
+                                                    <option value="CONFIRMED">Confirmed</option>
+                                                    <option value="IN_TRANSIT">In Transit</option>
+                                                    <option value="DELIVERED">Delivered</option>
+                                                    <option value="CANCELLED">Cancelled</option>
+                                                </select>
+                                                
+                                                {order.status === 'IN_TRANSIT' && <Truck size={14} className="text-purple-500"/>}
+                                                {order.status === 'DELIVERED' && <CheckCircle size={14} className="text-green-500"/>}
+                                                {order.status === 'CANCELLED' && <X size={14} className="text-red-500"/>}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                                {orders.length === 0 && (
+                                    <tr>
+                                        <td colSpan={5} className="p-8 text-center text-zinc-500">No orders received yet.</td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+             </div>
         )}
 
         {/* CATEGORIES TAB */}

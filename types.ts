@@ -52,7 +52,7 @@ export interface Order {
   totalAmount: number;
   discountAmount: number;
   finalAmount: number;
-  status: 'PENDING' | 'COMPLETED' | 'CANCELLED';
+  status: 'PENDING' | 'CONFIRMED' | 'IN_TRANSIT' | 'DELIVERED' | 'CANCELLED';
   date: string;
 }
 
