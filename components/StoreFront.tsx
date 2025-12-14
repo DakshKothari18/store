@@ -5,8 +5,8 @@ import { ShoppingBag, X, Plus, Minus, Tag, ExternalLink, Flame, Search, Filter, 
 import { WHATSAPP_NUMBER } from '../constants';
 
 const ITEMS_PER_PAGE = 8;
-const FILTERS_STORAGE_KEY = 'dripstore_filters';
-const THEME_STORAGE_KEY = 'dripstore_theme';
+const FILTERS_STORAGE_KEY = 'thatstore_filters';
+const THEME_STORAGE_KEY = 'thatstore_theme';
 
 export const StoreFront: React.FC = () => {
   // --- Data States ---
@@ -75,6 +75,7 @@ export const StoreFront: React.FC = () => {
 
   // --- Interaction States ---
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [modalSelectedSize, setModalSelectedSize] = useState<string>('');
   const [quickAddProductId, setQuickAddProductId] = useState<string | null>(null);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
 
@@ -114,6 +115,12 @@ export const StoreFront: React.FC = () => {
     }, 800);
     return () => clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    if (selectedProduct) {
+        setModalSelectedSize('');
+    }
+  }, [selectedProduct]);
 
   const toggleTheme = () => {
     if (isDarkMode) {
@@ -352,7 +359,7 @@ export const StoreFront: React.FC = () => {
         saveOrder(newOrder);
     }
 
-    let msg = `*New Order from DripStore*\n`;
+    let msg = `*New Order from Thatstore*\n`;
     if (currentUser) {
         msg += `Customer: ${currentUser.name}\n`;
         msg += `Email: ${currentUser.email}\n`;
@@ -420,7 +427,7 @@ export const StoreFront: React.FC = () => {
       <nav className="fixed top-0 left-0 right-0 bg-white/90 dark:bg-zinc-950/90 backdrop-blur-md z-40 border-b border-zinc-200 dark:border-zinc-800 transition-all duration-300">
         <div className="max-w-7xl mx-auto px-4 h-16 flex justify-between items-center gap-4">
           <div className="text-2xl font-black tracking-tighter text-zinc-900 dark:text-white italic flex-shrink-0 cursor-pointer" onClick={() => {clearFilters(); window.scrollTo({top: 0, behavior: 'smooth'});}}>
-            DRIP<span className="text-lime-500 dark:text-lime-400">STORE</span>
+            THAT<span className="text-lime-500 dark:text-lime-400">STORE</span>
           </div>
 
           {/* Desktop Search */}
@@ -503,7 +510,7 @@ export const StoreFront: React.FC = () => {
                 Start Shopping
             </a>
             <div className="flex items-center gap-2 text-zinc-500 dark:text-zinc-500 px-6 py-3 bg-white dark:bg-zinc-900/50 rounded-full border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                <Tag size={16} className="text-lime-500 dark:text-lime-400" /> Use code <span className="text-zinc-900 dark:text-white font-mono font-bold tracking-widest">WELCOME20</span>
+                <Tag size={16} className="text-lime-500 dark:text-lime-400" /> Use code <span className="text-zinc-900 dark:text-white font-mono font-bold tracking-widest">THAT10</span>
             </div>
         </div>
       </div>
@@ -805,7 +812,7 @@ export const StoreFront: React.FC = () => {
             <div className="w-full md:w-1/2 p-6 md:p-10 flex flex-col overflow-y-auto h-1/2 md:h-full bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100">
                 <div className="mb-auto">
                     <div className="flex justify-between items-center mb-2">
-                        <span className="text-lime-600 dark:text-lime-400 text-xs font-bold uppercase tracking-widest block">DripStore Exclusive</span>
+                        <span className="text-lime-600 dark:text-lime-400 text-xs font-bold uppercase tracking-widest block">Thatstore Exclusive</span>
                         <div className="flex items-center gap-3">
                              <button onClick={(e) => toggleWishlist(e, selectedProduct)} className="text-zinc-500 hover:text-red-500 transition">
                                  <Heart size={20} fill={isInWishlist(selectedProduct.id) ? "currentColor" : "none"} className={isInWishlist(selectedProduct.id) ? "text-red-500" : ""} />
@@ -874,22 +881,36 @@ export const StoreFront: React.FC = () => {
                                 <span className="text-xs text-zinc-500 uppercase tracking-wider font-bold">Select Size</span>
                                 <span className="text-xs text-lime-500 dark:text-lime-400 underline cursor-pointer">Size Guide</span>
                             </div>
-                            <div className="flex gap-3 flex-wrap">
+                            <div className="flex gap-3 flex-wrap mb-4">
                                 {selectedProduct.sizes.map(size => (
                                     <button
                                         key={size}
-                                        onClick={() => selectedProduct.stock > 0 && addToCart(selectedProduct, size)}
+                                        onClick={() => selectedProduct.stock > 0 && setModalSelectedSize(size)}
                                         disabled={selectedProduct.stock <= 0}
                                         className={`min-w-[56px] h-14 px-2 rounded border transition flex items-center justify-center font-mono text-sm font-bold ${
                                             selectedProduct.stock <= 0 
                                             ? 'bg-zinc-100 dark:bg-zinc-900 text-zinc-400 border-zinc-200 dark:border-zinc-800 cursor-not-allowed opacity-50'
-                                            : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 hover:border-lime-500 dark:hover:border-lime-400 hover:bg-lime-50 dark:hover:bg-lime-400/10 hover:text-lime-600 dark:hover:text-lime-400 text-zinc-900 dark:text-zinc-100'
+                                            : modalSelectedSize === size
+                                              ? 'bg-lime-400 text-black border-lime-400'
+                                              : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 hover:border-lime-500 dark:hover:border-lime-400 hover:bg-lime-50 dark:hover:bg-lime-400/10 hover:text-lime-600 dark:hover:text-lime-400 text-zinc-900 dark:text-zinc-100'
                                         }`}
                                     >
                                         {size}
                                     </button>
                                 ))}
                             </div>
+                            <button
+                                onClick={() => {
+                                    if (modalSelectedSize) {
+                                        addToCart(selectedProduct, modalSelectedSize);
+                                    }
+                                }}
+                                disabled={!modalSelectedSize || selectedProduct.stock <= 0}
+                                className="w-full bg-lime-400 disabled:bg-zinc-200 dark:disabled:bg-zinc-800 disabled:text-zinc-400 dark:disabled:text-zinc-600 text-black font-black py-4 rounded hover:bg-lime-500 transition uppercase tracking-wide flex items-center justify-center gap-2 shadow-lg disabled:shadow-none"
+                            >
+                                <ShoppingBag size={20} />
+                                {selectedProduct.stock <= 0 ? "Out of Stock" : "Add to Cart"}
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -1129,7 +1150,7 @@ export const StoreFront: React.FC = () => {
       <footer className="bg-white dark:bg-zinc-950 border-t border-zinc-200 dark:border-zinc-900 py-12 px-4 mt-20 transition-colors duration-300">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
             <div className="text-zinc-500 dark:text-zinc-600 text-sm">
-                © 2024 DRIPSTORE. Est. MMXXIV.
+                © 2024 THATSTORE. Est. MMXXIV.
             </div>
             <div className="flex gap-6 text-zinc-500 text-sm font-bold tracking-widest uppercase">
                 <a href="#" className="hover:text-lime-500 dark:hover:text-lime-400 transition">Instagram</a>

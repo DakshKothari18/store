@@ -12,13 +12,13 @@ export const generateProductContent = async (productName: string, category: stri
     // Return mock data if API key is missing to prevent crash
     return {
         description: `Premium ${category} featuring ${keyFeatures}. Designed for the modern streets.`,
-        seoTitle: `${productName} | DripStore Official`,
+        seoTitle: `${productName} | Thatstore Official`,
         keywords: ['streetwear', 'fashion', category.toLowerCase(), 'style', 'drip']
     };
   }
 
   const prompt = `
-    I am adding a new product to my streetwear brand "DripStore".
+    I am adding a new product to my streetwear brand "Thatstore".
     Product Name: ${productName}
     Category: ${category}
     Key Features: ${keyFeatures}

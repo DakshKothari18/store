@@ -16,7 +16,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     isNewDrop: true,
     seoTitle: 'Cyberpunk Oversized Tee - Limited Edition Streetwear',
     seoKeywords: ['cyberpunk', 'streetwear', 'oversized tee', 'black t-shirt'],
-    brand: 'DRIP ORIGINALS',
+    brand: 'THAT ORIGINALS',
     color: 'Black',
     variants: [
         { id: 'v1', name: 'Standard Fit', stock: 20 },
@@ -64,7 +64,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     sizes: ['One Size'],
     stock: 100,
     isNewDrop: true,
-    brand: 'DRIP ORIGINALS',
+    brand: 'THAT ORIGINALS',
     color: 'Silver',
     ratings: [4]
   },
@@ -97,14 +97,14 @@ export const INITIAL_PRODUCTS: Product[] = [
     sizes: ['US 7', 'US 8', 'US 9', 'US 10', 'US 11', 'US 12'],
     stock: 25,
     isNewDrop: false,
-    brand: 'DRIP ORIGINALS',
+    brand: 'THAT ORIGINALS',
     color: 'Black',
     ratings: [3, 4]
   }
 ];
 
 export const INITIAL_COUPONS: Coupon[] = [
-  { code: 'DRIP10', type: 'PERCENTAGE', value: 10 },
+  { code: 'THAT10', type: 'PERCENTAGE', value: 10 },
   { code: 'WELCOME20', type: 'PERCENTAGE', value: 20 },
   { code: 'FLAT500', type: 'FIXED', value: 500 }
 ];

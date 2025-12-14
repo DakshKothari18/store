@@ -26,6 +26,9 @@ export const AdminPanel: React.FC = () => {
   // Variant Input State
   const [newVariantName, setNewVariantName] = useState('');
   const [newVariantStock, setNewVariantStock] = useState<number>(0);
+  
+  // Custom Size Input State
+  const [customSize, setCustomSize] = useState('');
 
   const [loadingAI, setLoadingAI] = useState(false);
 
@@ -63,7 +66,7 @@ export const AdminPanel: React.FC = () => {
             sizes: currentProduct.sizes || ['M', 'L'],
             category: currentProduct.category || categories[0] || 'Uncategorized',
             price: Number(currentProduct.price),
-            brand: currentProduct.brand || 'DripStore',
+            brand: currentProduct.brand || 'Thatstore',
             color: currentProduct.color || 'Black',
             variants: currentProduct.variants || [],
             ratings: []
@@ -94,6 +97,7 @@ export const AdminPanel: React.FC = () => {
       setCurrentProduct({ category: categories[0] || '', sizes: [], images: [], brand: '', color: '', variants: [] });
       setNewVariantName('');
       setNewVariantStock(0);
+      setCustomSize('');
   }
 
   const handleAddVariant = () => {
@@ -189,6 +193,16 @@ export const AdminPanel: React.FC = () => {
     }
   };
 
+  const handleAddCustomSize = () => {
+      if(!customSize.trim()) return;
+      const sizeToAdd = customSize.trim().toUpperCase();
+      const currentSizes = currentProduct.sizes || [];
+      if(!currentSizes.includes(sizeToAdd)) {
+          setCurrentProduct({ ...currentProduct, sizes: [...currentSizes, sizeToAdd] });
+      }
+      setCustomSize('');
+  }
+
   // --- Coupon Handlers ---
   const handleSaveCoupon = () => {
       if (!currentCoupon.code || !currentCoupon.value) return;
@@ -250,7 +264,7 @@ export const AdminPanel: React.FC = () => {
       {/* Sidebar Navigation */}
       <aside className="w-full md:w-64 border-b md:border-b-0 md:border-r border-zinc-800 bg-zinc-900/50 p-6 flex flex-col gap-8">
         <div>
-            <h1 className="text-2xl font-black text-lime-400 tracking-tighter">DRIP ADMIN</h1>
+            <h1 className="text-2xl font-black text-lime-400 tracking-tighter">THAT ADMIN</h1>
             <p className="text-xs text-zinc-500 mt-1">Management Console</p>
         </div>
         
@@ -522,7 +536,7 @@ export const AdminPanel: React.FC = () => {
                           value={currentProduct.brand || ''}
                           onChange={e => setCurrentProduct({...currentProduct, brand: e.target.value})}
                           className="w-full bg-zinc-950 border border-zinc-700 rounded p-3 focus:border-lime-400 outline-none"
-                          placeholder="e.g. DRIP ORIGINALS"
+                          placeholder="e.g. THAT ORIGINALS"
                       />
                   </div>
 
@@ -593,21 +607,52 @@ export const AdminPanel: React.FC = () => {
                   </div>
                   
                   <div>
-                    <label className="block text-xs font-bold text-zinc-500 uppercase mb-2">Available Sizes</label>
-                    <div className="flex gap-2 flex-wrap">
+                    <label className="block text-xs font-bold text-zinc-500 uppercase mb-2">Selected Sizes</label>
+                    <div className="flex gap-2 flex-wrap mb-3">
+                         {currentProduct.sizes && currentProduct.sizes.length > 0 ? (
+                             currentProduct.sizes.map(s => (
+                                 <div key={s} className="bg-lime-400 text-black text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1">
+                                     {s}
+                                     <button onClick={() => toggleSize(s)} className="hover:text-red-700"><X size={12}/></button>
+                                 </div>
+                             ))
+                         ) : (
+                             <span className="text-xs text-zinc-500 italic">No sizes selected.</span>
+                         )}
+                    </div>
+                    
+                    <label className="block text-[10px] font-bold text-zinc-500 uppercase mb-1">Quick Add</label>
+                    <div className="flex gap-2 flex-wrap mb-3">
                       {SIZES.map(s => (
                         <button
                           key={s}
                           onClick={() => toggleSize(s)}
-                          className={`w-10 h-10 rounded flex items-center justify-center text-[10px] font-bold border transition ${
+                          className={`w-8 h-8 rounded flex items-center justify-center text-[10px] font-bold border transition ${
                             currentProduct.sizes?.includes(s) 
-                              ? 'bg-lime-400 text-black border-lime-400' 
-                              : 'bg-zinc-950 border-zinc-800 text-zinc-500 hover:border-zinc-600'
+                              ? 'bg-zinc-800 text-zinc-500 border-zinc-700 cursor-default opacity-50' 
+                              : 'bg-zinc-950 border-zinc-800 text-zinc-500 hover:border-lime-400 hover:text-white'
                           }`}
                         >
                           {s}
                         </button>
                       ))}
+                    </div>
+
+                    <label className="block text-[10px] font-bold text-zinc-500 uppercase mb-1">Add Custom Size</label>
+                    <div className="flex gap-2">
+                        <input 
+                            type="text" 
+                            placeholder="e.g. XS, 3XL" 
+                            value={customSize}
+                            onChange={(e) => setCustomSize(e.target.value)}
+                            className="flex-1 bg-zinc-950 border border-zinc-700 rounded px-3 py-2 text-xs outline-none focus:border-lime-400"
+                        />
+                        <button 
+                            onClick={handleAddCustomSize}
+                            className="bg-zinc-800 hover:bg-lime-400 hover:text-black text-white px-3 py-2 rounded text-xs font-bold transition"
+                        >
+                            Add
+                        </button>
                     </div>
                   </div>
 
