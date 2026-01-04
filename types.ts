@@ -1,7 +1,13 @@
+export interface VariantSize {
+  size: string;
+  stock: number;
+}
+
 export interface ProductVariant {
   id: string;
-  name: string; // e.g. "Red", "Canvas", "V2"
-  stock: number;
+  name: string; // e.g. "Crimson Red", "Suede Grey"
+  images: string[]; // Variant-specific images
+  sizes: VariantSize[]; // Sizes available for THIS variant
 }
 
 export interface Product {
@@ -11,22 +17,23 @@ export interface Product {
   price: number;
   originalPrice?: number;
   category: string;
-  images: string[];
-  sizes: string[];
-  stock: number;
+  images: string[]; // Fallback/Main images
+  sizes: string[]; // Legacy/Global sizes (optional now)
+  stock: number; // Aggregated stock
   seoTitle?: string;
   seoKeywords?: string[];
   isNewDrop?: boolean;
   brand?: string;
-  color?: string;
+  color?: string; // Main color
   variants?: ProductVariant[];
-  ratings?: number[]; // Array of ratings (1-5)
+  ratings?: number[];
 }
 
 export interface CartItem extends Product {
   selectedSize: string;
   quantity: number;
-  selectedVariant?: string;
+  selectedVariantId?: string;
+  selectedVariantName?: string;
 }
 
 export interface Coupon {
@@ -39,7 +46,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  password: string; // Stored in plaintext for this demo (Not for production)
+  password: string;
   phone?: string;
   joinedDate: string;
   wishlist?: string[];
@@ -54,6 +61,7 @@ export interface Order {
   finalAmount: number;
   status: 'PENDING' | 'CONFIRMED' | 'IN_TRANSIT' | 'DELIVERED' | 'CANCELLED';
   date: string;
+  qualityCheck?: boolean;
 }
 
 export enum ViewMode {

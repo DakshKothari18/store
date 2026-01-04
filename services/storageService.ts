@@ -1,4 +1,5 @@
-import { Product, Coupon, User, Order } from '../types';
+
+import { Product, Coupon, User, Order, SIZES } from '../types';
 import { INITIAL_PRODUCTS, INITIAL_COUPONS, INITIAL_CATEGORIES } from '../constants';
 
 const PRODUCTS_KEY = 'dripstore_products';
@@ -7,6 +8,7 @@ const USERS_KEY = 'dripstore_users';
 const ORDERS_KEY = 'dripstore_orders';
 const CURRENT_USER_KEY = 'dripstore_current_user';
 const CATEGORIES_KEY = 'dripstore_categories';
+const SIZES_KEY = 'dripstore_global_sizes';
 
 // --- Products ---
 export const getProducts = (): Product[] => {
@@ -22,17 +24,18 @@ export const saveProducts = (products: Product[]) => {
   localStorage.setItem(PRODUCTS_KEY, JSON.stringify(products));
 };
 
-export const addProductRating = (productId: string, rating: number) => {
-    const products = getProducts();
-    const updatedProducts = products.map(p => {
-        if (p.id === productId) {
-            const currentRatings = p.ratings || [];
-            return { ...p, ratings: [...currentRatings, rating] };
-        }
-        return p;
-    });
-    saveProducts(updatedProducts);
-    return updatedProducts;
+// --- Global Sizes ---
+export const getGlobalSizes = (): string[] => {
+  const stored = localStorage.getItem(SIZES_KEY);
+  if (!stored) {
+    localStorage.setItem(SIZES_KEY, JSON.stringify(SIZES));
+    return SIZES;
+  }
+  return JSON.parse(stored);
+};
+
+export const saveGlobalSizes = (sizes: string[]) => {
+  localStorage.setItem(SIZES_KEY, JSON.stringify(sizes));
 };
 
 // --- Categories ---
@@ -80,7 +83,6 @@ export const updateUser = (user: User) => {
     const updatedUsers = users.map(u => u.id === user.id ? user : u);
     localStorage.setItem(USERS_KEY, JSON.stringify(updatedUsers));
     
-    // Also update current user if it matches
     const currentUser = getCurrentUser();
     if (currentUser && currentUser.id === user.id) {
         localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));

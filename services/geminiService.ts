@@ -1,22 +1,10 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 
-// Handle API Key for both Vite (build) and standard process.env (local)
-// @ts-ignore
-const apiKey = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_KEY) || (typeof process !== 'undefined' ? process.env.API_KEY : '') || '';
-
-const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
+// Initialize Gemini API using process.env.API_KEY exclusively as per guidelines.
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
 
 export const generateProductContent = async (productName: string, category: string, keyFeatures: string) => {
-  if (!ai) {
-    console.error("API Key missing");
-    // Return mock data if API key is missing to prevent crash
-    return {
-        description: `Premium ${category} featuring ${keyFeatures}. Designed for the modern streets.`,
-        seoTitle: `${productName} | Thatstore Official`,
-        keywords: ['streetwear', 'fashion', category.toLowerCase(), 'style', 'drip']
-    };
-  }
-
   const prompt = `
     I am adding a new product to my streetwear brand "Thatstore".
     Product Name: ${productName}
@@ -28,8 +16,9 @@ export const generateProductContent = async (productName: string, category: stri
   `;
 
   try {
+    // Using gemini-3-flash-preview for text generation tasks as recommended in guidelines.
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3-flash-preview',
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -49,7 +38,12 @@ export const generateProductContent = async (productName: string, category: stri
       }
     });
 
-    return JSON.parse(response.text);
+    // The .text property is a direct property, not a function.
+    const text = response.text;
+    if (!text) {
+      throw new Error("Received an empty response from Gemini API");
+    }
+    return JSON.parse(text);
   } catch (error) {
     console.error("Error generating content:", error);
     throw error;
